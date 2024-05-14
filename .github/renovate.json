@@ -30,7 +30,7 @@
     "prConcurrentLimit": 4,
     "automergeType": "pr",
     "platformAutomerge": true,
-    "enableManagers": ["gomod", "dockerfile", "github-actions", "regex"],
+    "enabledManagers": ["gomod", "dockerfile", "github-actions", "regex"],
     "regexManagers": [
         {
             "fileMatch": [
@@ -41,6 +41,6 @@
             ],
             "depNameTemplate": "golang",
             "datasourceTemplate": "docker"
-        },
+        }
     ] 
 }
