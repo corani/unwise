@@ -4,21 +4,19 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 )
 
-var (
-	// ErrMissingValue is returned when a key is missing a value.
-	ErrMissingValue = fmt.Errorf("missing value")
-)
+// ErrMissingValue is returned when a key is missing a value.
+var ErrMissingValue = fmt.Errorf("missing value")
 
 // LoggerOption is an option for a logger.
 type LoggerOption = func(*Logger)
@@ -46,9 +44,16 @@ type Logger struct {
 	fields []interface{}
 
 	helpers *sync.Map
+	styles  *Styles
 }
 
-func (l *Logger) log(level Level, msg interface{}, keyvals ...interface{}) {
+// Logf logs a message with formatting.
+func (l *Logger) Logf(level Level, format string, args ...interface{}) {
+	l.Log(level, fmt.Sprintf(format, args...))
+}
+
+// Log logs the given message with the given keyvals for the given level.
+func (l *Logger) Log(level Level, msg interface{}, keyvals ...interface{}) {
 	if atomic.LoadUint32(&l.isDiscard) != 0 {
 		return
 	}
@@ -58,20 +63,41 @@ func (l *Logger) log(level Level, msg interface{}, keyvals ...interface{}) {
 		return
 	}
 
+	var frame runtime.Frame
+	if l.reportCaller {
+		// Skip log.log, the caller, and any offset added.
+		frames := l.frames(l.callerOffset + 2)
+		for {
+			f, more := frames.Next()
+			_, helper := l.helpers.Load(f.Function)
+			if !helper || !more {
+				// Found a frame that wasn't a helper function.
+				// Or we ran out of frames to check.
+				frame = f
+				break
+			}
+		}
+	}
+	l.handle(level, l.timeFunc(time.Now()), []runtime.Frame{frame}, msg, keyvals...)
+}
+
+func (l *Logger) handle(level Level, ts time.Time, frames []runtime.Frame, msg interface{}, keyvals ...interface{}) {
 	var kvs []interface{}
-	if l.reportTimestamp {
-		kvs = append(kvs, TimestampKey, l.timeFunc())
+	if l.reportTimestamp && !ts.IsZero() {
+		kvs = append(kvs, TimestampKey, ts)
 	}
 
-	if level != noLevel {
+	_, ok := l.styles.Levels[level]
+	if ok {
 		kvs = append(kvs, LevelKey, level)
 	}
 
-	if l.reportCaller {
-		// Call stack is log.Error -> log.log (2)
-		file, line, fn := l.fillLoc(l.callerOffset + 2)
-		caller := l.callerFormatter(file, line, fn)
-		kvs = append(kvs, CallerKey, caller)
+	if l.reportCaller && len(frames) > 0 && frames[0].PC != 0 {
+		file, line, fn := l.location(frames)
+		if file != "" {
+			caller := l.callerFormatter(file, line, fn)
+			kvs = append(kvs, CallerKey, caller)
+		}
 	}
 
 	if l.prefix != "" {
@@ -79,8 +105,9 @@ func (l *Logger) log(level Level, msg interface{}, keyvals ...interface{}) {
 	}
 
 	if msg != nil {
-		m := fmt.Sprint(msg)
-		kvs = append(kvs, MessageKey, m)
+		if m := fmt.Sprint(msg); m != "" {
+			kvs = append(kvs, MessageKey, m)
+		}
 	}
 
 	// append logger fields
@@ -88,6 +115,7 @@ func (l *Logger) log(level Level, msg interface{}, keyvals ...interface{}) {
 	if len(l.fields)%2 != 0 {
 		kvs = append(kvs, ErrMissingValue)
 	}
+
 	// append the rest
 	kvs = append(kvs, keyvals...)
 	if len(keyvals)%2 != 0 {
@@ -106,7 +134,7 @@ func (l *Logger) log(level Level, msg interface{}, keyvals ...interface{}) {
 	}
 
 	// WriteTo will reset the buffer
-	l.b.WriteTo(l.w) // nolint: errcheck
+	l.b.WriteTo(l.w) //nolint: errcheck
 }
 
 // Helper marks the calling function as a helper
@@ -117,34 +145,32 @@ func (l *Logger) Helper() {
 }
 
 func (l *Logger) helper(skip int) {
-	_, _, fn := location(skip + 1)
-	l.helpers.LoadOrStore(fn, struct{}{})
+	var pcs [1]uintptr
+	// Skip runtime.Callers, and l.helper
+	n := runtime.Callers(skip+2, pcs[:])
+	frames := runtime.CallersFrames(pcs[:n])
+	frame, _ := frames.Next()
+	l.helpers.LoadOrStore(frame.Function, struct{}{})
 }
 
-func (l *Logger) fillLoc(skip int) (file string, line int, fn string) {
+// frames returns the runtime.Frames for the caller.
+func (l *Logger) frames(skip int) *runtime.Frames {
 	// Copied from testing.T
 	const maxStackLen = 50
 	var pc [maxStackLen]uintptr
 
-	// Skip two extra frames to account for this function
-	// and runtime.Callers itself.
+	// Skip runtime.Callers, and l.frame
 	n := runtime.Callers(skip+2, pc[:])
 	frames := runtime.CallersFrames(pc[:n])
-	for {
-		frame, more := frames.Next()
-		_, helper := l.helpers.Load(frame.Function)
-		if !helper || !more {
-			// Found a frame that wasn't a helper function.
-			// Or we ran out of frames to check.
-			return frame.File, frame.Line, frame.Function
-		}
-	}
+	return frames
 }
 
-func location(skip int) (file string, line int, fn string) {
-	pc, file, line, _ := runtime.Caller(skip + 1)
-	f := runtime.FuncForPC(pc)
-	return file, line, f.Name()
+func (l *Logger) location(frames []runtime.Frame) (file string, line int, fn string) {
+	if len(frames) == 0 {
+		return "", 0, ""
+	}
+	f := frames[0]
+	return f.File, f.Line, f.Function
 }
 
 // Cleanup a path by returning the last n segments of the path only.
@@ -248,7 +274,7 @@ func (l *Logger) SetOutput(w io.Writer) {
 	}
 	l.w = w
 	var isDiscard uint32
-	if w == ioutil.Discard {
+	if w == io.Discard {
 		isDiscard = 1
 	}
 	atomic.StoreUint32(&l.isDiscard, isDiscard)
@@ -282,15 +308,34 @@ func (l *Logger) SetCallerOffset(offset int) {
 	l.callerOffset = offset
 }
 
+// SetColorProfile force sets the underlying Lip Gloss renderer color profile
+// for the TextFormatter.
+func (l *Logger) SetColorProfile(profile termenv.Profile) {
+	l.re.SetColorProfile(profile)
+}
+
+// SetStyles sets the logger styles for the TextFormatter.
+func (l *Logger) SetStyles(s *Styles) {
+	if s == nil {
+		s = DefaultStyles()
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.styles = s
+}
+
 // With returns a new logger with the given keyvals added.
 func (l *Logger) With(keyvals ...interface{}) *Logger {
+	var st Styles
 	l.mu.Lock()
 	sl := *l
+	st = *l.styles
 	l.mu.Unlock()
 	sl.b = bytes.Buffer{}
 	sl.mu = &sync.RWMutex{}
 	sl.helpers = &sync.Map{}
 	sl.fields = append(l.fields, keyvals...)
+	sl.styles = &st
 	return &sl
 }
 
@@ -303,62 +348,62 @@ func (l *Logger) WithPrefix(prefix string) *Logger {
 
 // Debug prints a debug message.
 func (l *Logger) Debug(msg interface{}, keyvals ...interface{}) {
-	l.log(DebugLevel, msg, keyvals...)
+	l.Log(DebugLevel, msg, keyvals...)
 }
 
 // Info prints an info message.
 func (l *Logger) Info(msg interface{}, keyvals ...interface{}) {
-	l.log(InfoLevel, msg, keyvals...)
+	l.Log(InfoLevel, msg, keyvals...)
 }
 
 // Warn prints a warning message.
 func (l *Logger) Warn(msg interface{}, keyvals ...interface{}) {
-	l.log(WarnLevel, msg, keyvals...)
+	l.Log(WarnLevel, msg, keyvals...)
 }
 
 // Error prints an error message.
 func (l *Logger) Error(msg interface{}, keyvals ...interface{}) {
-	l.log(ErrorLevel, msg, keyvals...)
+	l.Log(ErrorLevel, msg, keyvals...)
 }
 
 // Fatal prints a fatal message and exits.
 func (l *Logger) Fatal(msg interface{}, keyvals ...interface{}) {
-	l.log(FatalLevel, msg, keyvals...)
+	l.Log(FatalLevel, msg, keyvals...)
 	os.Exit(1)
 }
 
 // Print prints a message with no level.
 func (l *Logger) Print(msg interface{}, keyvals ...interface{}) {
-	l.log(noLevel, msg, keyvals...)
+	l.Log(noLevel, msg, keyvals...)
 }
 
 // Debugf prints a debug message with formatting.
 func (l *Logger) Debugf(format string, args ...interface{}) {
-	l.log(DebugLevel, fmt.Sprintf(format, args...))
+	l.Log(DebugLevel, fmt.Sprintf(format, args...))
 }
 
 // Infof prints an info message with formatting.
 func (l *Logger) Infof(format string, args ...interface{}) {
-	l.log(InfoLevel, fmt.Sprintf(format, args...))
+	l.Log(InfoLevel, fmt.Sprintf(format, args...))
 }
 
 // Warnf prints a warning message with formatting.
 func (l *Logger) Warnf(format string, args ...interface{}) {
-	l.log(WarnLevel, fmt.Sprintf(format, args...))
+	l.Log(WarnLevel, fmt.Sprintf(format, args...))
 }
 
 // Errorf prints an error message with formatting.
 func (l *Logger) Errorf(format string, args ...interface{}) {
-	l.log(ErrorLevel, fmt.Sprintf(format, args...))
+	l.Log(ErrorLevel, fmt.Sprintf(format, args...))
 }
 
 // Fatalf prints a fatal message with formatting and exits.
 func (l *Logger) Fatalf(format string, args ...interface{}) {
-	l.log(FatalLevel, fmt.Sprintf(format, args...))
+	l.Log(FatalLevel, fmt.Sprintf(format, args...))
 	os.Exit(1)
 }
 
 // Printf prints a message with no level and formatting.
 func (l *Logger) Printf(format string, args ...interface{}) {
-	l.log(noLevel, fmt.Sprintf(format, args...))
+	l.Log(noLevel, fmt.Sprintf(format, args...))
 }

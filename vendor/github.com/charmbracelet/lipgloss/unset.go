@@ -287,7 +287,7 @@ func (s Style) UnsetMaxHeight() Style {
 	return s
 }
 
-// UnsetMaxHeight removes the max height style rule, if set.
+// UnsetTabWidth removes the tab width style rule, if set.
 func (s Style) UnsetTabWidth() Style {
 	delete(s.rules, tabWidthKey)
 	return s
@@ -302,6 +302,12 @@ func (s Style) UnsetUnderlineSpaces() Style {
 // UnsetStrikethroughSpaces removes the value set by StrikethroughSpaces.
 func (s Style) UnsetStrikethroughSpaces() Style {
 	delete(s.rules, strikethroughSpacesKey)
+	return s
+}
+
+// UnsetTransform removes the value set by Transform.
+func (s Style) UnsetTransform() Style {
+	delete(s.rules, transformKey)
 	return s
 }
 

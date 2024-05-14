@@ -44,7 +44,9 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	logger.SetLevel(log.ParseLevel(conf.LogLevel))
+	if v, err := log.ParseLevel(conf.LogLevel); err == nil {
+		logger.SetLevel(v)
+	}
 
 	conf.Logger = logger
 

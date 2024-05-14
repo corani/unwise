@@ -333,23 +333,21 @@ func (s Style) GetBorderRightSize() int {
 	if !s.getAsBool(borderRightKey, false) {
 		return 0
 	}
-	return s.getBorderStyle().GetBottomSize()
+	return s.getBorderStyle().GetRightSize()
 }
 
 // GetHorizontalBorderSize returns the width of the horizontal borders. If
 // borders contain runes of varying widths, the widest rune is returned. If no
 // border exists on the horizontal edges, 0 is returned.
 func (s Style) GetHorizontalBorderSize() int {
-	b := s.getBorderStyle()
-	return b.GetLeftSize() + b.GetRightSize()
+	return s.GetBorderLeftSize() + s.GetBorderRightSize()
 }
 
 // GetVerticalBorderSize returns the width of the vertical borders. If
 // borders contain runes of varying widths, the widest rune is returned. If no
 // border exists on the vertical edges, 0 is returned.
 func (s Style) GetVerticalBorderSize() int {
-	b := s.getBorderStyle()
-	return b.GetTopSize() + b.GetBottomSize()
+	return s.GetBorderTopSize() + s.GetBorderBottomSize()
 }
 
 // GetInline returns the style's inline setting. If no value is set false is
@@ -408,6 +406,12 @@ func (s Style) GetVerticalFrameSize() int {
 // both the horizontal and vertical margins.
 func (s Style) GetFrameSize() (x, y int) {
 	return s.GetHorizontalFrameSize(), s.GetVerticalFrameSize()
+}
+
+// GetTransform returns the transform set on the style. If no transform is set
+// nil is returned.
+func (s Style) GetTransform() func(string) string {
+	return s.getAsTransform(transformKey)
 }
 
 // Returns whether or not the given property is set.
@@ -469,6 +473,17 @@ func (s Style) getBorderStyle() Border {
 		return b
 	}
 	return noBorder
+}
+
+func (s Style) getAsTransform(k propKey) func(string) string {
+	v, ok := s.rules[k]
+	if !ok {
+		return nil
+	}
+	if fn, ok := v.(func(string) string); ok {
+		return fn
+	}
+	return nil
 }
 
 // Split a string into lines, additionally returning the size of the widest

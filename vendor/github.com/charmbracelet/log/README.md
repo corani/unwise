@@ -34,6 +34,7 @@ readable logging with batteries included.
 - Leveled logging.
 - Text, JSON, and Logfmt formatters.
 - Store and retrieve logger in and from context.
+- Slog handler.
 - Standard log adapter.
 
 ## Usage
@@ -167,7 +168,7 @@ logger := log.NewWithOptions(os.Stderr, log.Options{
     ReportCaller: true,
     ReportTimestamp: true,
     TimeFormat: time.Kitchen,
-    Prefix: "Baking 🍪 "
+    Prefix: "Baking 🍪 ",
 })
 logger.Info("Starting oven!", "degree", 375)
 time.Sleep(10 * time.Minute)
@@ -209,18 +210,18 @@ defined at a global level in [styles.go](./styles.go).
 
 ```go
 // Override the default error level style.
-log.ErrorLevelStyle = lipgloss.NewStyle().
-    SetString("ERROR!!").
-    Padding(0, 1, 0, 1).
-    Background(lipgloss.AdaptiveColor{
-        Light: "203",
-        Dark:  "204",
-    }).
-    Foreground(lipgloss.Color("0"))
+styles := log.DefaultStyles()
+styles.Levels[log.ErrorLevel] = lipgloss.NewStyle().
+	SetString("ERROR!!").
+	Padding(0, 1, 0, 1).
+	Background(lipgloss.Color("204")).
+	Foreground(lipgloss.Color("0"))
 // Add a custom style for key `err`
-log.KeyStyles["err"] = lipgloss.NewStyle().Foreground(lipgloss.Color("204"))
-log.ValueStyles["err"] = lipgloss.NewStyle().Bold(true)
-log.Error("Whoops!", "err", "kitchen on fire")
+styles.Keys["err"] = lipgloss.NewStyle().Foreground(lipgloss.Color("204"))
+styles.Values["err"] = lipgloss.NewStyle().Bold(true)
+logger := log.New(os.Stderr)
+logger.SetStyles(styles)
+logger.Error("Whoops!", "err", "kitchen on fire")
 ```
 
 <picture>
@@ -287,7 +288,7 @@ Skip caller frames in helper functions. Similar to what you can do with
 `testing.TB().Helper()`.
 
 ```go
-function startOven(degree int) {
+func startOven(degree int) {
     log.Helper()
     log.Info("Starting oven", "degree", degree)
 }
@@ -305,6 +306,17 @@ startOven(400) // INFO <cookies/oven.go:123> Starting oven degree=400
 
 This will use the _caller_ function (`startOven`) line number instead of the
 logging function (`log.Info`) to report the source location.
+
+### Slog Handler
+
+You can use Log as an [`log/slog`](https://pkg.go.dev/log/slog) handler. Just
+pass a logger instance to Slog and you're good to go.
+
+```go
+handler := log.New(os.Stderr)
+logger := slog.New(handler)
+logger.Error("meow?")
+```
 
 ### Standard Log Adapter
 
@@ -329,6 +341,16 @@ stdlog.Printf("Failed to make bake request, %s", fmt.Errorf("temperature is too 
 // ERROR http: Failed to make bake request, temperature is too low
 ```
 
+## Gum
+
+<img src="https://vhs.charm.sh/vhs-6jupuFM0s2fXiUrBE0I1vU.gif" width="600" alt="Running gum log with debug and error levels" />
+
+Log integrates with [Gum][gum] to log messages to output. Use `gum log [flags]
+[message]` to handle logging in your shell scripts. See
+[charmbracelet/gum](https://github.com/charmbracelet/gum#log) for more
+information.
+
+[gum]: https://github.com/charmbracelet/gum
 [lipgloss]: https://github.com/charmbracelet/lipgloss
 [stdlog]: https://pkg.go.dev/log
 

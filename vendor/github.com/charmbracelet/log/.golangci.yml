@@ -23,8 +23,8 @@ linters:
     - goimports
     - goprintffuncname
     - gosec
-    - ifshort
     - misspell
+    - nolintlint
     - prealloc
     - revive
     - rowserrcheck
