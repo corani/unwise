@@ -24,9 +24,7 @@ func newServer() *Server {
 }
 
 func (s *Server) CheckAuth(c *fiber.Ctx, key string) (bool, error) {
-	// TODO(daniel): check token.
-
-	return key == "bla", nil
+	return key == s.conf.Token, nil
 }
 
 func (s *Server) HandleAuth(c *fiber.Ctx) error {
