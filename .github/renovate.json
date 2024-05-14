@@ -30,7 +30,7 @@
     "prConcurrentLimit": 4,
     "automergeType": "pr",
     "platformAutomerge": true,
-    "enabledManagers": ["gomod", "dockerfile", "github-actions", "regex"],
+    "enabledManagers": [ "gomod", "dockerfile", "github-actions", "regex" ],
     "regexManagers": [
         {
             "fileMatch": [
