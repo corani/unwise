@@ -1,5 +1,7 @@
 # A partial reimplementation of the Readwise API in Go
 
+[![codecov](https://codecov.io/gh/corani/unwise/graph/badge.svg?token=2FGRUHZ1B5)](https://codecov.io/gh/corani/unwise)
+
 Rather than manually exporting my book notes from Moon+ Reader and importing them into Obsidian,
 I'd like to automate the process. Readwise has an [API](https://readwise.io/api_deets) that can be
 used for this purpose, that is supported by both Moon+ Reader and Obsidian, however I'd like to
