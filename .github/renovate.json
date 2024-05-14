@@ -1,0 +1,46 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+        "config:base"
+    ],
+    "constraints": {
+        "go": "1.22"
+    },
+    "postUpdateOptions": [
+        "gomodTidy"
+    ],
+    "packageRules": [
+        {
+            "matchUpdateTypes": ["patch", "digest"],
+            "labels": ["renovate", "patch-update"],
+            "automerge": true
+        },
+        {
+            "matchUpdateTypes": ["minor"],
+            "labels": ["renovate", "minor-update"],
+            "automerge": true
+        },
+        {
+            "matchUpdateTypes": ["major"],
+            "labels": ["renovate", "major-update"],
+            "dependencyDashboardApproval": true
+        }
+    ],
+    "dependencyDashboardLabels": ["renovate"],
+    "prConcurrentLimit": 4,
+    "automergeType": "pr",
+    "platformAutomerge": true,
+    "enableManagers": ["gomod", "dockerfile", "github-actions", "regex"],
+    "regexManagers": [
+        {
+            "fileMatch": [
+                "^\\.github/workflows/.*\\.yml"
+            ],
+            "matchStrings": [
+                "go-version: '(?<currentValue>.+?)'"
+            ],
+            "depNameTemplate": "golang",
+            "datasourceTemplate": "docker"
+        },
+    ] 
+}
