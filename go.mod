@@ -3,7 +3,7 @@ module github.com/corani/unwise
 go 1.22.2
 
 require (
-	github.com/caarlos0/env/v9 v9.0.0
+	github.com/caarlos0/env/v11 v11.0.0
 	github.com/charmbracelet/log v0.2.4
 	github.com/gofiber/fiber/v2 v2.52.4
 	github.com/google/uuid v1.6.0

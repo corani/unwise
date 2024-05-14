@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	env "github.com/caarlos0/env/v9"
+	env "github.com/caarlos0/env/v11"
 	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
 	dotenv "github.com/joho/godotenv"
