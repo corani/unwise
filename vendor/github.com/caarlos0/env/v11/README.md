@@ -2,17 +2,29 @@
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/caarlos0/env/build.yml?branch=main&style=for-the-badge)](https://github.com/caarlos0/env/actions?workflow=build)
 [![Coverage Status](https://img.shields.io/codecov/c/gh/caarlos0/env.svg?logo=codecov&style=for-the-badge)](https://codecov.io/gh/caarlos0/env)
-[![](http://img.shields.io/badge/godoc-reference-5272B4.svg?style=for-the-badge)](https://pkg.go.dev/github.com/caarlos0/env/v9)
+[![](http://img.shields.io/badge/godoc-reference-5272B4.svg?style=for-the-badge)](https://pkg.go.dev/github.com/caarlos0/env/v11)
 
 A simple and zero-dependencies library to parse environment variables into
 `struct`s.
+
+## Used and supported by
+
+<p>
+  <a href="https://encore.dev">
+    <img src="https://user-images.githubusercontent.com/78424526/214602214-52e0483a-b5fc-4d4c-b03e-0b7b23e012df.svg" width="120px" alt="encore icon"></img>
+  </a>
+  <br/>
+  <br/>
+  <b>Encore – the platform for building Go-based cloud backends.</b>
+  <br/>
+</p>
 
 ## Example
 
 Get the module with:
 
 ```sh
-go get github.com/caarlos0/env/v9
+go get github.com/caarlos0/env/v11
 ```
 
 The usage looks like this:
@@ -24,17 +36,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/caarlos0/env/v9"
+	"github.com/caarlos0/env/v11"
 )
 
 type config struct {
-	Home         string        `env:"HOME"`
-	Port         int           `env:"PORT" envDefault:"3000"`
-	Password     string        `env:"PASSWORD,unset"`
-	IsProduction bool          `env:"PRODUCTION"`
-	Hosts        []string      `env:"HOSTS" envSeparator:":"`
-	Duration     time.Duration `env:"DURATION"`
-	TempFolder   string        `env:"TEMP_FOLDER,expand" envDefault:"${HOME}/tmp"`
+	Home         string         `env:"HOME"`
+	Port         int            `env:"PORT" envDefault:"3000"`
+	Password     string         `env:"PASSWORD,unset"`
+	IsProduction bool           `env:"PRODUCTION"`
+	Duration     time.Duration  `env:"DURATION"`
+	Hosts        []string       `env:"HOSTS" envSeparator:":"`
+	TempFolder   string         `env:"TEMP_FOLDER,expand" envDefault:"${HOME}/tmp"`
+	StringInts   map[string]int `env:"MAP_STRING_INT"`
 }
 
 func main() {
@@ -50,17 +63,16 @@ func main() {
 You can run it like this:
 
 ```sh
-$ PRODUCTION=true HOSTS="host1:host2:host3" DURATION=1s go run main.go
-{Home:/your/home Port:3000 IsProduction:true Hosts:[host1 host2 host3] Duration:1s}
+$ PRODUCTION=true HOSTS="host1:host2:host3" DURATION=1s MAP_STRING_INT=k1:1,k2:2 go run main.go
+{Home:/your/home Port:3000 IsProduction:true Hosts:[host1 host2 host3] Duration:1s StringInts:map[k1:1 k2:2]}
 ```
 
 ## Caveats
 
-> **Warning**
+> [!CAUTION]
 >
-> **This is important!**
-
-- _Unexported fields_ are **ignored**
+> _Unexported fields_ will be **ignored** by `env`.
+> This is by design and will not change.
 
 ## Supported types and defaults
 
@@ -100,7 +112,10 @@ If you set the `envDefault` tag for something, this value will be used in the
 case of absence of it in the environment.
 
 By default, slice types will split the environment value on `,`; you can change
-this behavior by setting the `envSeparator` tag.
+this behavior by setting the `envSeparator` tag. For map types, the default
+separator between key and value is `:` and `,` for key-value pairs.
+The behavior can be changed by setting the `envKeyValSeparator` and
+`envSeparator` tags accordingly.
 
 ## Custom Parser Funcs
 
@@ -115,7 +130,7 @@ field.
 If you add a custom parser for, say `Foo`, it will also be used to parse
 `*Foo` and `[]Foo` types.
 
-Check the examples in the [go doc](http://pkg.go.dev/github.com/caarlos0/env/v9)
+Check the examples in the [go doc](http://pkg.go.dev/github.com/caarlos0/env/v11)
 for more info.
 
 ### A note about `TextUnmarshaler` and `time.Time`
@@ -157,7 +172,7 @@ type config struct {
 }
 ```
 
-> **Warning**
+> [!NOTE]
 >
 > Note that being set is not the same as being empty.
 > If the variable is set, but empty, the field will have its type's default
@@ -176,7 +191,35 @@ type config struct {
 }
 ```
 
-This also works with `envDefault`.
+This also works with `envDefault`:
+
+```go
+import (
+	"fmt"
+	"github.com/caarlos0/env/v11"
+)
+
+type config struct {
+	Host     string `env:"HOST" envDefault:"localhost"`
+	Port     int    `env:"PORT" envDefault:"3000"`
+	Address  string `env:"ADDRESS,expand" envDefault:"$HOST:${PORT}"`
+}
+
+func main() {
+	cfg := config{}
+	if err := env.Parse(&cfg); err != nil {
+		fmt.Printf("%+v\n", err)
+	}
+	fmt.Printf("%+v\n", cfg)
+}
+```
+
+results in this:
+
+```sh
+$ PORT=8080 go run main.go
+{Host:localhost Port:8080 Address:localhost:8080}
+```
 
 ## Not Empty fields
 
@@ -218,13 +261,14 @@ package main
 import (
 	"fmt"
 	"time"
-	"github.com/caarlos0/env/v9"
+
+	"github.com/caarlos0/env/v11"
 )
 
 type config struct {
-	Secret       string   `env:"SECRET,file"`
-	Password     string   `env:"PASSWORD,file" envDefault:"/tmp/password"`
-	Certificate  string   `env:"CERTIFICATE,file,expand" envDefault:"${CERTIFICATE_FILE}"`
+	Secret      string `env:"SECRET,file"`
+	Password    string `env:"PASSWORD,file"           envDefault:"/tmp/password"`
+	Certificate string `env:"CERTIFICATE,file,expand" envDefault:"${CERTIFICATE_FILE}"`
 }
 
 func main() {
@@ -266,7 +310,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/caarlos0/env/v9"
+	"github.com/caarlos0/env/v11"
 )
 
 type Config struct {
@@ -306,7 +350,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/caarlos0/env/v9"
+	"github.com/caarlos0/env/v11"
 )
 
 type Config struct {
@@ -343,7 +387,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/caarlos0/env/v9"
+	"github.com/caarlos0/env/v11"
 )
 
 type Config struct {
@@ -377,7 +421,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/caarlos0/env/v9"
+	"github.com/caarlos0/env/v11"
 )
 
 type Config struct {
@@ -426,7 +470,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/caarlos0/env/v9"
+	"github.com/caarlos0/env/v11"
 )
 
 type Config struct {
@@ -466,7 +510,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/caarlos0/env/v9"
+	"github.com/caarlos0/env/v11"
 )
 
 type Config struct {
@@ -502,7 +546,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/caarlos0/env/v9"
+	"github.com/caarlos0/env/v11"
 )
 
 type Config struct {
@@ -511,7 +555,7 @@ type Config struct {
 }
 
 func main() {
-	var cfg = Config{
+	cfg := Config{
 		Username: "test",
 		Password: "123456",
 	}
@@ -520,7 +564,7 @@ func main() {
 		fmt.Println("failed:", err)
 	}
 
-	fmt.Printf("%+v", cfg)  // {Username:admin Password:123456}
+	fmt.Printf("%+v", cfg) // {Username:admin Password:123456}
 }
 ```
 
@@ -535,7 +579,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/caarlos0/env/v9"
+	"github.com/caarlos0/env/v11"
 )
 
 type Config struct {
@@ -563,7 +607,7 @@ func main() {
 		}
 	}
 
-	fmt.Printf("%+v", cfg)  // {Username:admin Password:123456}
+	fmt.Printf("%+v", cfg) // {Username:admin Password:123456}
 }
 ```
 
@@ -571,6 +615,10 @@ func main() {
 >
 > If you want to check if an specific error is in the chain, you can also use
 > `errors.Is()`.
+
+## Related projects
+
+- [envdoc](https://github.com/g4s8/envdoc) - generate documentation for environment variables from `env` tags
 
 ## Stargazers over time
 
