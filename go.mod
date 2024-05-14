@@ -6,7 +6,7 @@ require (
 	github.com/caarlos0/env/v9 v9.0.0
 	github.com/charmbracelet/log v0.2.4
 	github.com/gofiber/fiber/v2 v2.52.4
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 )
 
