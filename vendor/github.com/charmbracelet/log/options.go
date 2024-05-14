@@ -9,7 +9,7 @@ import (
 const DefaultTimeFormat = "2006/01/02 15:04:05"
 
 // TimeFunction is a function that returns a time.Time.
-type TimeFunction = func() time.Time
+type TimeFunction = func(time.Time) time.Time
 
 // NowUTC is a convenient function that returns the
 // current time in UTC timezone.
@@ -18,8 +18,8 @@ type TimeFunction = func() time.Time
 // For example:
 //
 //	log.SetTimeFunction(log.NowUTC)
-func NowUTC() time.Time {
-	return time.Now().UTC()
+func NowUTC(t time.Time) time.Time {
+	return t.UTC()
 }
 
 // CallerFormatter is the caller formatter.
@@ -27,12 +27,12 @@ type CallerFormatter func(string, int, string) string
 
 // ShortCallerFormatter is a caller formatter that returns the last 2 levels of the path
 // and line number.
-func ShortCallerFormatter(file string, line int, funcName string) string {
+func ShortCallerFormatter(file string, line int, _ string) string {
 	return fmt.Sprintf("%s:%d", trimCallerPath(file, 2), line)
 }
 
 // LongCallerFormatter is a caller formatter that returns the full path and line number.
-func LongCallerFormatter(file string, line int, funcName string) string {
+func LongCallerFormatter(file string, line int, _ string) string {
 	return fmt.Sprintf("%s:%d", file, line)
 }
 
@@ -50,7 +50,7 @@ type Options struct {
 	ReportTimestamp bool
 	// ReportCaller is whether the logger should report the caller location. The default is false.
 	ReportCaller bool
-	// CallerFormatter is the caller format for the logger. The default is CallerShort.
+	// CallerFormatter is the caller format for the logger. The default is ShortCallerFormatter.
 	CallerFormatter CallerFormatter
 	// CallerOffset is the caller format for the logger. The default is 0.
 	CallerOffset int
@@ -58,5 +58,4 @@ type Options struct {
 	Fields []interface{}
 	// Formatter is the formatter for the logger. The default is TextFormatter.
 	Formatter Formatter
-	
 }
