@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,12 +66,32 @@ func TestServer_HandleError(t *testing.T) {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: s.HandleError,
 	})
+	app.Get("/custom", func(c *fiber.Ctx) error {
+		return assert.AnError
+	})
 
-	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/error", nil))
-	rq.NoError(err)
+	t.Run("fiber error", func(t *testing.T) {
+		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/error", nil))
+		rq.NoError(err)
 
-	rq.Equal(http.StatusNotFound, resp.StatusCode)
-	bodyJSONEq(t, `{"error":"Cannot GET /error","code":404}`, resp.Body)
+		rq.Equal(http.StatusNotFound, resp.StatusCode)
+		bodyJSONEq(t, `{
+			"error":"Cannot GET /error",
+			"code":404,
+			"details":"Cannot GET /error"
+		}`, resp.Body)
+	})
+
+	t.Run("custom error", func(t *testing.T) {
+		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/custom", nil))
+		rq.NoError(err)
+
+		rq.Equal(http.StatusInternalServerError, resp.StatusCode)
+		bodyJSONEq(t, `{
+			"error":"assert.AnError general error for testing",
+			"code":500
+		}`, resp.Body)
+	})
 }
 
 func TestServer_HandleCreateHighlights(t *testing.T) {
@@ -85,7 +106,7 @@ func TestServer_HandleCreateHighlights(t *testing.T) {
 	t.Run("invalid content type", func(t *testing.T) {
 		resp, err := app.Test(httptest.NewRequest(http.MethodPost, "/highlights", nil))
 		rq.NoError(err)
-		rq.Equal(http.StatusUnsupportedMediaType, resp.StatusCode)
+		rq.Equal(http.StatusBadRequest, resp.StatusCode)
 	})
 
 	t.Run("invalid body", func(t *testing.T) {
@@ -96,7 +117,11 @@ func TestServer_HandleCreateHighlights(t *testing.T) {
 		rq.NoError(err)
 
 		rq.Equal(http.StatusBadRequest, resp.StatusCode)
-		bodyJSONEq(t, `{"error":"Bad Request","code":400}`, resp.Body)
+		bodyJSONEq(t, `{
+			"error":"Bad Request",
+			"code":400,
+			"details":"Bad Request: invalid character 'i' looking for beginning of value (raw=\"invalid\")"
+		}`, resp.Body)
 	})
 
 	t.Run("valid content type", func(t *testing.T) {
@@ -125,7 +150,11 @@ func TestServer_HandleListHighlights(t *testing.T) {
 		rq.NoError(err)
 		rq.Equal(http.StatusBadRequest, resp.StatusCode)
 
-		bodyJSONEq(t, `{"error":"Bad Request","code":400}`, resp.Body)
+		bodyJSONEq(t, `{
+			"error":"Bad Request",
+			"code":400,
+			"details":"Bad Request: invalid page_size -1"
+		}`, resp.Body)
 	})
 
 	t.Run("invalid updated__lt", func(t *testing.T) {
@@ -133,7 +162,11 @@ func TestServer_HandleListHighlights(t *testing.T) {
 		rq.NoError(err)
 		rq.Equal(http.StatusBadRequest, resp.StatusCode)
 
-		bodyJSONEq(t, `{"error":"Bad Request","code":400}`, resp.Body)
+		bodyJSONEq(t, `{
+			"error":"Bad Request",
+			"code":400,
+			"details":"Bad Request: invalid updated__lt \"invalid\""
+		}`, resp.Body)
 	})
 
 	t.Run("invalid updated__gt", func(t *testing.T) {
@@ -141,7 +174,11 @@ func TestServer_HandleListHighlights(t *testing.T) {
 		rq.NoError(err)
 		rq.Equal(http.StatusBadRequest, resp.StatusCode)
 
-		bodyJSONEq(t, `{"error":"Bad Request","code":400}`, resp.Body)
+		bodyJSONEq(t, `{
+			"error":"Bad Request",
+			"code":400,
+			"details":"Bad Request: invalid updated__gt \"invalid\""
+		}`, resp.Body)
 	})
 
 	t.Run("valid body", func(t *testing.T) {
@@ -149,7 +186,7 @@ func TestServer_HandleListHighlights(t *testing.T) {
 		rq.NoError(err)
 
 		rq.Equal(http.StatusOK, resp.StatusCode)
-		bodyJSONEq(t, `{"results":null}`, resp.Body)
+		bodyJSONEq(t, `{}`, resp.Body)
 	})
 }
 
@@ -167,7 +204,11 @@ func TestServer_HandleListBooks(t *testing.T) {
 		rq.NoError(err)
 		rq.Equal(http.StatusBadRequest, resp.StatusCode)
 
-		bodyJSONEq(t, `{"error":"Bad Request","code":400}`, resp.Body)
+		bodyJSONEq(t, `{
+			"error":"Bad Request",
+			"code":400,
+			"details": "Bad Request: invalid page_size -1"
+		}`, resp.Body)
 	})
 
 	t.Run("invalid updated__lt", func(t *testing.T) {
@@ -175,7 +216,11 @@ func TestServer_HandleListBooks(t *testing.T) {
 		rq.NoError(err)
 		rq.Equal(http.StatusBadRequest, resp.StatusCode)
 
-		bodyJSONEq(t, `{"error":"Bad Request","code":400}`, resp.Body)
+		bodyJSONEq(t, `{
+			"error":"Bad Request",
+			"code":400,
+			"details":"Bad Request: invalid updated__lt \"invalid\""
+		}`, resp.Body)
 	})
 
 	t.Run("invalid updated__gt", func(t *testing.T) {
@@ -183,7 +228,11 @@ func TestServer_HandleListBooks(t *testing.T) {
 		rq.NoError(err)
 		rq.Equal(http.StatusBadRequest, resp.StatusCode)
 
-		bodyJSONEq(t, `{"error":"Bad Request","code":400}`, resp.Body)
+		bodyJSONEq(t, `{
+			"error":"Bad Request",
+			"code":400,
+			"details":"Bad Request: invalid updated__gt \"invalid\""
+		}`, resp.Body)
 	})
 
 	t.Run("valid body", func(t *testing.T) {
@@ -191,7 +240,7 @@ func TestServer_HandleListBooks(t *testing.T) {
 		rq.NoError(err)
 
 		rq.Equal(http.StatusOK, resp.StatusCode)
-		bodyJSONEq(t, `{"results":null}`, resp.Body)
+		bodyJSONEq(t, `{}`, resp.Body)
 	})
 }
 

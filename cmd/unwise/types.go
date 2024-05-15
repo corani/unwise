@@ -38,7 +38,7 @@ type CreateHighlightResponse struct {
 // Used by Obsidian Plugin
 
 type ListHighlightsResponse struct {
-	Results []ListHighlight `json:"results"`
+	Results []ListHighlight `json:"results,omitempty"`
 }
 
 type ListHighlight struct {
@@ -52,7 +52,7 @@ type ListHighlight struct {
 }
 
 type ListBooksResponse struct {
-	Results []ListBook `json:"results"`
+	Results []ListBook `json:"results,omitempty"`
 }
 
 type ListBook struct {
