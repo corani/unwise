@@ -4,24 +4,24 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/corani/unwise/internal/config"
+	"github.com/corani/unwise/internal/storage"
 	"github.com/gofiber/fiber/v2"
 )
 
 type Server struct {
 	conf *config.Config
-}
-
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Code    int    `json:"code"`
-	Details string `json:"details,omitempty"`
+	stor *storage.Storage
 }
 
 func newServer() *Server {
+	conf := config.MustLoad()
+
 	return &Server{
-		conf: config.MustLoad(),
+		conf: conf,
+		stor: storage.New(conf),
 	}
 }
 
@@ -44,11 +44,42 @@ func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
 
 	s.conf.Logger.Info("create highlights",
 		"raw", string(c.Body()),
+		"content-type", c.Get("Content-Type"),
 		"req", req)
 
-	var res []CreateHighlightResponse
+	var list []CreateHighlightResponse
 
-	return c.JSON(res)
+	for _, rh := range req.Highlights {
+		b, _ := s.stor.AddBook(rh.Title, rh.Author, rh.SourceURL)
+		h, _ := s.stor.AddHighlight(b, rh.Text, rh.Note, rh.Chapter, rh.Location, rh.HighlightURL)
+
+		found := false
+
+		for i, v := range list {
+			if v.ID == b.ID {
+				list[i].ModifiedHighlights = append(v.ModifiedHighlights, h.ID)
+				found = true
+
+				break
+			}
+		}
+
+		if !found {
+			list = append(list, CreateHighlightResponse{
+				ID:                 b.ID,
+				Title:              b.Title,
+				Author:             b.Author,
+				SourceURL:          b.SourceURL,
+				Category:           HighlightCategoryBooks,
+				NumHighlights:      b.NumHighlights(),
+				LastHighlightAt:    b.LastHighlight().Format(time.RFC3339),
+				UpdatedAt:          h.Updated.Format(time.RFC3339),
+				ModifiedHighlights: []int{h.ID},
+			})
+		}
+	}
+
+	return c.JSON(list)
 }
 
 func (s *Server) HandleListHighlights(c *fiber.Ctx) error {
@@ -63,6 +94,19 @@ func (s *Server) HandleListHighlights(c *fiber.Ctx) error {
 		"updated__gt", p.updatedGT)
 
 	var res ListHighlightsResponse
+
+	for _, highlight := range s.stor.ListHighlights(p.updatedLT, p.updatedGT) {
+		res.Results = append(res.Results, ListHighlight{
+			ID:        highlight.ID,
+			BookID:    highlight.BookID,
+			Text:      highlight.Text,
+			Note:      highlight.Note,
+			Chapter:   highlight.Chapter,
+			Location:  highlight.Location,
+			URL:       highlight.URL,
+			UpdatedAt: highlight.Updated.Format(time.RFC3339),
+		})
+	}
 
 	return c.JSON(res)
 }
@@ -79,6 +123,18 @@ func (s *Server) HandleListBooks(c *fiber.Ctx) error {
 		"updated__gt", p.updatedGT)
 
 	var res ListBooksResponse
+
+	for _, book := range s.stor.ListBooks(p.updatedLT, p.updatedGT) {
+		res.Results = append(res.Results, ListBook{
+			ID:            book.ID,
+			Title:         book.Title,
+			Author:        book.Author,
+			SourceURL:     book.SourceURL,
+			Category:      HighlightCategoryBooks,
+			NumHighlights: book.NumHighlights(),
+			UpdatedAt:     book.Updated.Format(time.RFC3339),
+		})
+	}
 
 	return c.JSON(res)
 }
