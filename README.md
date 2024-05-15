@@ -23,6 +23,15 @@ I'm using the [Obsidian Readwise (Community Plugin)](https://github.com/renehern
 to import my highlights into Obsidian. To allow for setting a custom API server location, use the 
 following patch: [Add setting for API server location](https://github.com/algocentric/obsidian-readwise/commit/f2da99bd9d387536171a1ed37217c5548b236ee4)
 
+## Endpoints
+
+| Method | Path                 | Description                   | Used by      |
+| ------ | -------------------- | ----------------------------- | ------------ |
+| GET    | `/api/v2/auth`       | Validate authentication token |              |
+| POST   | `/api/v2/highlights` | Create a highlight            | Moon+ Reader |
+| GET    | `/api/v2/highlights` | Get all highlights            | Obsidian     |
+| GET    | `/api/v2/books`      | Get all highlights            | Obsidian     |
+
 ## Running locally
 
 Run the following command:
@@ -42,7 +51,7 @@ $ go run ./cmd/unwise/
  └───────────────────────────────────────────────────┘
 ```
 
-## Configuration 
+### Configuration 
 
 The following environment variables can be used to configure the server (you can also add them to
 a `.env` file): 
@@ -54,15 +63,16 @@ a `.env` file):
 | `REST_PATH` | Base path to listen on        | `/api/v2`   |
 | `TOKEN`     | Authentication token          | (generated) |
 
-## Endpoints
-
-| Method | Path                 | Description                   | Used by      |
-| ------ | -------------------- | ----------------------------- | ------------ |
-| GET    | `/api/v2/auth`       | Validate authentication token |              |
-| POST   | `/api/v2/highlights` | Create a highlight            | Moon+ Reader |
-| GET    | `/api/v2/highlights` | Get all highlights            | Obsidian     |
-| GET    | `/api/v2/books`      | Get all highlights            | Obsidian     |
-
 ## Docker 
 
-TODO
+```sh 
+$ docker run --rm -it -p 3123:3123  \
+    -e TOKEN=my-token               \
+    ghcr.io/corani/unwise:latest
+```
+
+Or using docker compose:
+
+```sh
+$ docker-compose -f docker/docker-compose.yml up
+```

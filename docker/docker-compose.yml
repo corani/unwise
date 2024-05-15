@@ -1,0 +1,10 @@
+---
+version: "3.3"
+
+services: 
+  unwise:
+    image: "ghcr.io/corani/unwise:latest"
+    ports:
+      - "3123:3123"
+    environment:
+      - "TOKEN=my-token"
