@@ -47,6 +47,18 @@ func TestServer_CheckAuth(t *testing.T) {
 	}
 }
 
+func TestServer_HandleRoot(t *testing.T) {
+	rq := require.New(t)
+	s := newServer()
+
+	app := fiber.New()
+	app.Get("/", s.HandleRoot)
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/", nil))
+	rq.NoError(err)
+	rq.Equal(http.StatusNoContent, resp.StatusCode)
+}
+
 func TestServer_HandleAuth(t *testing.T) {
 	rq := require.New(t)
 	s := newServer()

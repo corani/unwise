@@ -19,6 +19,8 @@ func newApp(server *Server) *fiber.App {
 		helmet.New(), // secure headers
 	)
 
+	app.Get("/", server.HandleRoot)
+
 	// default RestPath="/api/v2"
 	api := app.Group(server.conf.RestPath)
 	api.Use(keyauth.New(keyauth.Config{
