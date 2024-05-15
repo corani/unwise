@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/corani/unwise/internal/config"
@@ -59,7 +60,7 @@ func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
 	var req CreateHighlightRequest
 
 	if err := c.BodyParser(&req); err != nil {
-		return err
+		return fmt.Errorf("%w: %v", fiber.ErrBadRequest, err)
 	}
 
 	var res []CreateHighlightResponse
@@ -71,19 +72,19 @@ func (s *Server) HandleListHighlights(c *fiber.Ctx) error {
 	// optional, default 100, max 1000
 	pageSize := c.QueryInt("page_size", 100)
 	if pageSize < 0 || pageSize > 1000 {
-		return fiber.ErrBadRequest
+		return fmt.Errorf("%w: invalid page_size %d", fiber.ErrBadRequest, pageSize)
 	}
 
 	// optional, filter by last updated datetime (less than)
 	updatedLT, err := parseISO8601Datetime(c.Query("updated__lt"))
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: invalid updated__lt %v", fiber.ErrBadRequest, c.Query("updated__lt"))
 	}
 
 	// optional, filter by last updated datetime (greater than)
 	updatedGT, err := parseISO8601Datetime(c.Query("updated__gt"))
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: invalid updated__gt %v", fiber.ErrBadRequest, c.Query("updated__gt"))
 	}
 
 	_ = updatedLT
@@ -98,19 +99,19 @@ func (s *Server) HandleListBooks(c *fiber.Ctx) error {
 	// optional, default 100, max 1000
 	pageSize := c.QueryInt("page_size", 100)
 	if pageSize < 0 || pageSize > 1000 {
-		return fiber.ErrBadRequest
+		return fmt.Errorf("%w: invalid page_size %d", fiber.ErrBadRequest, pageSize)
 	}
 
 	// optional, filter by last updated datetime (less than)
 	updatedLT, err := parseISO8601Datetime(c.Query("updated__lt"))
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: invalid updated__lt %v", fiber.ErrBadRequest, c.Query("updated__lt"))
 	}
 
 	// optional, filter by last updated datetime (greater than)
 	updatedGT, err := parseISO8601Datetime(c.Query("updated__gt"))
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: invalid updated__gt %v", fiber.ErrBadRequest, c.Query("updated__gt"))
 	}
 
 	_ = updatedLT
