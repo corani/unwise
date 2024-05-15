@@ -1,5 +1,11 @@
 package main
 
+type ErrorResponse struct {
+	Error   string `json:"error"`
+	Code    int    `json:"code"`
+	Details string `json:"details,omitempty"`
+}
+
 type HighlightCategory string
 
 const (
@@ -19,6 +25,7 @@ type CreateHighlight struct {
 	Category     HighlightCategory `json:"category"`      // [book]
 	Text         string            `json:"text"`          // [highlight] highlight text
 	Note         string            `json:"note"`          // [highlight] note for highlight
+	Chapter      string            `json:"chapter"`       // [highlight] chapter of the book
 	Location     int               `json:"location"`      // [highlight] highlights location, used to order the highlights
 	HighlightURL string            `json:"highlight_url"` // [highlight] unique url for the highlight (e.g. a concrete tweet)
 }
@@ -46,6 +53,7 @@ type ListHighlight struct {
 	BookID    int    `json:"book_id"` // foreign key to Book.ID
 	Text      string `json:"text"`
 	Note      string `json:"note"`
+	Chapter   string `json:"chapter"`
 	Location  int    `json:"location"`
 	URL       string `json:"url"`
 	UpdatedAt string `json:"updated"` // generated
