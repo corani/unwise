@@ -25,33 +25,14 @@ func newServer() *Server {
 	}
 }
 
-func (s *Server) CheckAuth(c *fiber.Ctx, key string) (bool, error) {
-	return key == s.conf.Token, nil
+func (s *Server) HandleRoot(c *fiber.Ctx) error {
+	// NOTE(daniel): unauthenticated endpoint.
+
+	return c.SendStatus(http.StatusNoContent)
 }
 
 func (s *Server) HandleAuth(c *fiber.Ctx) error {
 	return c.SendStatus(http.StatusNoContent)
-}
-
-func (s *Server) HandleError(c *fiber.Ctx, err error) error {
-	var e *fiber.Error
-
-	if errors.As(err, &e) {
-		return c.
-			Status(e.Code).
-			JSON(&ErrorResponse{
-				Error:   e.Message,
-				Code:    e.Code,
-				Details: err.Error(),
-			})
-	}
-
-	return c.
-		Status(http.StatusInternalServerError).
-		JSON(&ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusInternalServerError,
-		})
 }
 
 func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
@@ -100,4 +81,29 @@ func (s *Server) HandleListBooks(c *fiber.Ctx) error {
 	var res ListBooksResponse
 
 	return c.JSON(res)
+}
+
+func (s *Server) CheckAuth(c *fiber.Ctx, key string) (bool, error) {
+	return key == s.conf.Token, nil
+}
+
+func (s *Server) HandleError(c *fiber.Ctx, err error) error {
+	var e *fiber.Error
+
+	if errors.As(err, &e) {
+		return c.
+			Status(e.Code).
+			JSON(&ErrorResponse{
+				Error:   e.Message,
+				Code:    e.Code,
+				Details: err.Error(),
+			})
+	}
+
+	return c.
+		Status(http.StatusInternalServerError).
+		JSON(&ErrorResponse{
+			Error: err.Error(),
+			Code:  http.StatusInternalServerError,
+		})
 }
