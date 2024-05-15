@@ -14,8 +14,9 @@ type Server struct {
 }
 
 type ErrorResponse struct {
-	Error string `json:"error"`
-	Code  int    `json:"code"`
+	Error   string `json:"error"`
+	Code    int    `json:"code"`
+	Details string `json:"details,omitempty"`
 }
 
 func newServer() *Server {
@@ -35,33 +36,34 @@ func (s *Server) HandleAuth(c *fiber.Ctx) error {
 func (s *Server) HandleError(c *fiber.Ctx, err error) error {
 	var e *fiber.Error
 
-	code := http.StatusInternalServerError
-	msg := err.Error()
-
 	if errors.As(err, &e) {
-		code = e.Code
-		msg = e.Message
+		return c.
+			Status(e.Code).
+			JSON(&ErrorResponse{
+				Error:   e.Message,
+				Code:    e.Code,
+				Details: err.Error(),
+			})
 	}
 
 	return c.
-		Status(code).
+		Status(http.StatusInternalServerError).
 		JSON(&ErrorResponse{
-			Error: msg,
-			Code:  code,
+			Error: err.Error(),
+			Code:  http.StatusInternalServerError,
 		})
 }
 
 func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
-	// ensure content type is json
-	if c.Get("Content-Type") != fiber.MIMEApplicationJSON {
-		return fiber.ErrUnsupportedMediaType
-	}
-
 	var req CreateHighlightRequest
 
 	if err := c.BodyParser(&req); err != nil {
-		return fmt.Errorf("%w: %v", fiber.ErrBadRequest, err)
+		return fmt.Errorf("%w: %v (raw=%q)", fiber.ErrBadRequest, err, string(c.Body()))
 	}
+
+	s.conf.Logger.Info("create highlights",
+		"raw", string(c.Body()),
+		"req", req)
 
 	var res []CreateHighlightResponse
 
@@ -69,26 +71,15 @@ func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
 }
 
 func (s *Server) HandleListHighlights(c *fiber.Ctx) error {
-	// optional, default 100, max 1000
-	pageSize := c.QueryInt("page_size", 100)
-	if pageSize < 0 || pageSize > 1000 {
-		return fmt.Errorf("%w: invalid page_size %d", fiber.ErrBadRequest, pageSize)
-	}
-
-	// optional, filter by last updated datetime (less than)
-	updatedLT, err := parseISO8601Datetime(c.Query("updated__lt"))
+	p, err := parseParams(c)
 	if err != nil {
-		return fmt.Errorf("%w: invalid updated__lt %v", fiber.ErrBadRequest, c.Query("updated__lt"))
+		return err
 	}
 
-	// optional, filter by last updated datetime (greater than)
-	updatedGT, err := parseISO8601Datetime(c.Query("updated__gt"))
-	if err != nil {
-		return fmt.Errorf("%w: invalid updated__gt %v", fiber.ErrBadRequest, c.Query("updated__gt"))
-	}
-
-	_ = updatedLT
-	_ = updatedGT
+	s.conf.Logger.Info("list highlights",
+		"page_size", p.pageSize,
+		"updated__lt", p.updatedLT,
+		"updated__gt", p.updatedGT)
 
 	var res ListHighlightsResponse
 
@@ -96,26 +87,15 @@ func (s *Server) HandleListHighlights(c *fiber.Ctx) error {
 }
 
 func (s *Server) HandleListBooks(c *fiber.Ctx) error {
-	// optional, default 100, max 1000
-	pageSize := c.QueryInt("page_size", 100)
-	if pageSize < 0 || pageSize > 1000 {
-		return fmt.Errorf("%w: invalid page_size %d", fiber.ErrBadRequest, pageSize)
-	}
-
-	// optional, filter by last updated datetime (less than)
-	updatedLT, err := parseISO8601Datetime(c.Query("updated__lt"))
+	p, err := parseParams(c)
 	if err != nil {
-		return fmt.Errorf("%w: invalid updated__lt %v", fiber.ErrBadRequest, c.Query("updated__lt"))
+		return err
 	}
 
-	// optional, filter by last updated datetime (greater than)
-	updatedGT, err := parseISO8601Datetime(c.Query("updated__gt"))
-	if err != nil {
-		return fmt.Errorf("%w: invalid updated__gt %v", fiber.ErrBadRequest, c.Query("updated__gt"))
-	}
-
-	_ = updatedLT
-	_ = updatedGT
+	s.conf.Logger.Info("list books",
+		"page_size", p.pageSize,
+		"updated__lt", p.updatedLT,
+		"updated__gt", p.updatedGT)
 
 	var res ListBooksResponse
 
