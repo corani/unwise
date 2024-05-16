@@ -1,2 +1,7 @@
 .env
 cover.cov
+coverage.txt
+data/
+bin/
+cfg/VERSION
+cfg/HASH

@@ -3,13 +3,14 @@ package main
 import (
 	"testing"
 
+	"github.com/corani/unwise/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMain_newApp(t *testing.T) {
 	rq := require.New(t)
 
-	server := newServer()
+	server := newServer(config.MustLoad(), nil)
 	app := newApp(server)
 
 	rq.NotNil(app)
