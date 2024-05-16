@@ -17,7 +17,7 @@ jobs:
 
       - uses: FranzDiebold/github-env-vars-action@v2
 
-      - uses: heinrichreimer/github-changelog-generator-action@v2.2
+      - uses: heinrichreimer/github-changelog-generator-action@v2.4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           issues: true
