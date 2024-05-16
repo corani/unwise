@@ -15,7 +15,13 @@ var (
 
 // Version returns the embedded application version.
 func Version() string {
-	return strings.TrimSpace(version)
+	v := strings.TrimSpace(version)
+
+	if strings.HasSuffix(v, "/merge") {
+		v = "pr-" + strings.TrimSuffix(v, "/merge")
+	}
+
+	return v
 }
 
 // Hash returns the embedded application hash.
