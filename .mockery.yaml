@@ -1,0 +1,12 @@
+---
+with-expecter: true
+inpackage: false
+mockname: "{{.InterfaceName}}"
+outpkg: "mocks"
+filename: "{{.InterfaceName | snakecase}}.go"
+dir: fakes/{{ trimPrefix .InterfaceDirRelative "internal/" }}
+all: false
+packages: 
+  github.com/corani/unwise/internal/storage:
+    interfaces: 
+      Storage:

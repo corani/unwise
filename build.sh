@@ -4,70 +4,7 @@ prog=$(realpath "$0")
 root=$(dirname "$prog")
 rc=0
 
-function set_rc {
-    if [ "$1" -ne 0 ]; then
-        rc=$1
-    fi
-}
-
-function log_notice {
-    label="[INFO]"
-    if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then
-        label="::notice::${label}"
-    fi
-
-    # shellcheck disable=SC2145
-    echo "${label} $@"
-}
-
-function log_info {
-    # shellcheck disable=SC2145
-    echo "[INFO] $@"
-}
-
-function log_warning {
-    label="[WARN]"
-    if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then
-        label="::warning::${label}"
-    fi
-
-    # shellcheck disable=SC2145
-    echo "${label} $@"
-}
-
-function log_error {
-    label="[ERRO]"
-    if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then
-        label="::error::${label}"
-    fi
-
-    # shellcheck disable=SC2145
-    echo "${label} $@"
-    set_rc 1
-}
-
-function log_cmd {
-    # shellcheck disable=SC2145
-    echo "[CMD ] $@"
-}
-
-function do_echo {
-    # shellcheck disable=SC2145
-    log_cmd "$@"
-
-    if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then
-        TIMEFORMAT="::debug::[TIME] took %3lR"
-    else
-        TIMEFORMAT="[TIME] took %3lR"
-    fi
-
-    time "$@"
-    code=$?
-    if [ $code -ne 0 ]; then
-        log_error "return code $rc"
-        set_rc $code
-    fi
-}
+source "${root}/scripts/helpers.sh"
 
 function print_usage {
   echo "Usage: $prog [options...]"
@@ -76,7 +13,24 @@ function print_usage {
   echo "  -h                    prints this help"
   echo "  -b                    build service"
   echo "  -d                    build the docker image"
+  echo "  -g                    generate mocks"
   echo "  -t                    run unit tests"
+}
+
+function go_install_tools {
+    do_echo tools/install.sh
+}
+
+function require_tool {
+    export PATH=/go/bin:"${root}/tools/bin":${PATH}
+
+    command -v "${1}" > /dev/null
+    if [ $? -eq 1 ]; then
+        log_info "${1} not found, installing"
+        go_install_tools
+    fi
+
+    log_notice "using $(command -v "$1") version $(go version -m "$(command -v "$1")" | awk '$1 == "mod" { print $3 }')"
 }
 
 function update_hash {
@@ -105,6 +59,14 @@ function go_build {
 
 function go_test {
     do_echo go test -race -coverprofile=coverage.txt -covermode=atomic ./... 
+}
+
+function go_generate {
+    require_tool mockery 
+    require_tool gofumpt 
+
+    do_echo mockery
+    do_echo ./scripts/gofmt.sh
 }
 
 function docker_build {
@@ -139,6 +101,9 @@ while [ "$#" -gt "0" ]; do
     -t)
         go_build
         go_test
+        ;;
+    -g)
+        go_generate 
         ;;
     *)
         log_error "unrecognized argument '$arg'"
