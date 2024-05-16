@@ -6,5 +6,8 @@ services:
     image: "ghcr.io/corani/unwise:latest"
     ports:
       - "3123:3123"
+    volumes:
+      - "./data:/data"
     environment:
       - "TOKEN=my-token"
+      - "DATA_PATH=/data"

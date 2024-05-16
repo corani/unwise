@@ -79,7 +79,7 @@ function update_hash {
     echo "${VERSION}" > cfg/VERSION
 
     if [ -z "${GITHUB_SHA:-}" ]; then
-        if command -v git; then
+        if command -v git > /dev/null; then
             hash=$(git rev-parse HEAD)
         else
             log_warning "git not found, couldn't update hash (set GITHUB_SHA)"
