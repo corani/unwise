@@ -88,6 +88,21 @@ func (s *Mem) ListBooks(lt, gt time.Time) []storage.Book {
 	return books
 }
 
+func (s *Mem) AddHighlight(b storage.Book, text, note, chapter string, location int, url string) (storage.Highlight, bool) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	for _, book := range s.books {
+		if book.ID == b.ID {
+			highlight, created := book.AddHighlight(text, note, chapter, location, url)
+
+			return *highlight, created
+		}
+	}
+
+	return storage.Highlight{}, false
+}
+
 func (s *Mem) ListHighlights(lt, gt time.Time) []storage.Highlight {
 	if gt.IsZero() {
 		gt = time.Now()
@@ -109,21 +124,6 @@ func (s *Mem) ListHighlights(lt, gt time.Time) []storage.Highlight {
 	}
 
 	return highlights
-}
-
-func (s *Mem) AddHighlight(b storage.Book, text, note, chapter string, location int, url string) (storage.Highlight, bool) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	for _, book := range s.books {
-		if book.ID == b.ID {
-			highlight, created := book.AddHighlight(text, note, chapter, location, url)
-
-			return *highlight, created
-		}
-	}
-
-	return storage.Highlight{}, false
 }
 
 func (b *cachedBook) AddHighlight(text, note, chapter string, location int, url string) (*storage.Highlight, bool) {

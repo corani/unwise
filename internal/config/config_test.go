@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/charmbracelet/log"
@@ -39,4 +40,16 @@ func TestConfig_MustLoad(t *testing.T) {
 		rq.Equal("info", conf.LogLevel)
 		rq.Equal(log.InfoLevel, conf.Logger.GetLevel())
 	})
+}
+
+func TestConfig_PrintBanner(t *testing.T) {
+	rq := require.New(t)
+	buf := new(bytes.Buffer)
+
+	conf := MustLoad()
+	conf.Logger.SetOutput(buf)
+
+	conf.PrintBanner()
+
+	rq.Contains(buf.String(), "version=")
 }
