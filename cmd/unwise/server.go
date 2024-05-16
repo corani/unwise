@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/corani/unwise/internal/config"
@@ -40,13 +41,16 @@ func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
 		return fmt.Errorf("%w: %v (raw=%q)", fiber.ErrBadRequest, err, string(c.Body()))
 	}
 
+	r := strings.NewReplacer("\t", "", "\n", "")
+
 	s.conf.Logger.Info("create highlights",
-		"raw", string(c.Body()),
+		"raw", r.Replace(string(c.Body())),
 		"content-type", c.Get("Content-Type"),
 		"req", req)
 
 	var list []CreateHighlightResponse
 
+	// TODO(daniel): NumHighlights and LastHighlightAt may not be correct.
 	for _, rh := range req.Highlights {
 		b, _ := s.stor.AddBook(rh.Title, rh.Author, rh.SourceURL)
 		h, _ := s.stor.AddHighlight(b, rh.Text, rh.Note, rh.Chapter, rh.Location, rh.HighlightURL)
@@ -56,6 +60,8 @@ func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
 		for i, v := range list {
 			if v.ID == b.ID {
 				list[i].ModifiedHighlights = append(v.ModifiedHighlights, h.ID)
+				list[i].NumHighlights++
+				list[i].LastHighlightAt = h.Updated.Format(time.RFC3339)
 				found = true
 
 				break
@@ -69,8 +75,8 @@ func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
 				Author:             b.Author,
 				SourceURL:          b.SourceURL,
 				Category:           HighlightCategoryBooks,
-				NumHighlights:      b.NumHighlights(),
-				LastHighlightAt:    b.LastHighlight().Format(time.RFC3339),
+				NumHighlights:      1,
+				LastHighlightAt:    h.Updated.Format(time.RFC3339),
 				UpdatedAt:          h.Updated.Format(time.RFC3339),
 				ModifiedHighlights: []int{h.ID},
 			})
