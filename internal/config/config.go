@@ -2,10 +2,12 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"time"
 
 	env "github.com/caarlos0/env/v11"
 	"github.com/charmbracelet/log"
+	"github.com/corani/unwise/cfg"
 	"github.com/google/uuid"
 	dotenv "github.com/joho/godotenv"
 )
@@ -14,7 +16,10 @@ type Config struct {
 	LogLevel string `env:"LOGLEVEL" envDefault:"info"`
 	RestAddr string `env:"REST_ADDR" envDefault:":3123"`
 	RestPath string `env:"REST_PATH" envDefault:"/api/v2"`
+	DataPath string `env:"DATA_PATH" envDefault:"/tmp"`
 	Token    string `env:"TOKEN"`
+	Version  string
+	Hash     string
 	Logger   *log.Logger
 }
 
@@ -49,6 +54,8 @@ func Load() (*Config, error) {
 	}
 
 	conf.Logger = logger
+	conf.Version = cfg.Version()
+	conf.Hash = cfg.Hash()
 
 	if conf.Token == "" {
 		conf.Token = uuid.NewString()
@@ -56,5 +63,23 @@ func Load() (*Config, error) {
 		logger.Info("generated new token", "token", conf.Token)
 	}
 
+	// TODO(daniel): Should we expand '~' as well?
+	if v, err := filepath.Abs(conf.DataPath); err == nil {
+		conf.DataPath = v
+	} else {
+		return nil, err
+	}
+
 	return conf, nil
+}
+
+func (c *Config) PrintBanner() {
+	c.Logger.Info("configuration",
+		"version", c.Version,
+		"hash", c.Hash,
+		"logLevel", c.LogLevel,
+		"restAddr", c.RestAddr,
+		"restPath", c.RestPath,
+		"dataPath", c.DataPath,
+	)
 }

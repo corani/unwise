@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/corani/unwise/internal/config"
+	"github.com/corani/unwise/internal/storage"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,7 +39,7 @@ func TestServer_CheckAuth(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			rq := require.New(t)
 
-			s := newServer()
+			s := newServer(config.MustLoad(), nil)
 			s.conf.Token = tc.token
 
 			act, err := s.CheckAuth(nil, tc.key)
@@ -49,7 +51,7 @@ func TestServer_CheckAuth(t *testing.T) {
 
 func TestServer_HandleRoot(t *testing.T) {
 	rq := require.New(t)
-	s := newServer()
+	s := newServer(config.MustLoad(), nil)
 
 	app := fiber.New()
 	app.Get("/", s.HandleRoot)
@@ -61,7 +63,7 @@ func TestServer_HandleRoot(t *testing.T) {
 
 func TestServer_HandleAuth(t *testing.T) {
 	rq := require.New(t)
-	s := newServer()
+	s := newServer(config.MustLoad(), nil)
 
 	app := fiber.New()
 	app.Get("/auth", s.HandleAuth)
@@ -73,7 +75,7 @@ func TestServer_HandleAuth(t *testing.T) {
 
 func TestServer_HandleError(t *testing.T) {
 	rq := require.New(t)
-	s := newServer()
+	s := newServer(config.MustLoad(), nil)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: s.HandleError,
@@ -108,12 +110,14 @@ func TestServer_HandleError(t *testing.T) {
 
 func TestServer_HandleCreateHighlights(t *testing.T) {
 	rq := require.New(t)
-	s := newServer()
+	conf := config.MustLoad()
+	stor := storage.New(conf)
+	serv := newServer(conf, stor)
 
 	app := fiber.New(fiber.Config{
-		ErrorHandler: s.HandleError,
+		ErrorHandler: serv.HandleError,
 	})
-	app.Post("/highlights", s.HandleCreateHighlights)
+	app.Post("/highlights", serv.HandleCreateHighlights)
 
 	t.Run("invalid content type", func(t *testing.T) {
 		resp, err := app.Test(httptest.NewRequest(http.MethodPost, "/highlights", nil))
@@ -150,12 +154,14 @@ func TestServer_HandleCreateHighlights(t *testing.T) {
 
 func TestServer_HandleListHighlights(t *testing.T) {
 	rq := require.New(t)
-	s := newServer()
+	conf := config.MustLoad()
+	stor := storage.New(conf)
+	serv := newServer(conf, stor)
 
 	app := fiber.New(fiber.Config{
-		ErrorHandler: s.HandleError,
+		ErrorHandler: serv.HandleError,
 	})
-	app.Get("/highlights", s.HandleListHighlights)
+	app.Get("/highlights", serv.HandleListHighlights)
 
 	t.Run("invalid page size", func(t *testing.T) {
 		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/highlights?page_size=-1", nil))
@@ -204,12 +210,14 @@ func TestServer_HandleListHighlights(t *testing.T) {
 
 func TestServer_HandleListBooks(t *testing.T) {
 	rq := require.New(t)
-	s := newServer()
+	conf := config.MustLoad()
+	stor := storage.New(conf)
+	serv := newServer(conf, stor)
 
 	app := fiber.New(fiber.Config{
-		ErrorHandler: s.HandleError,
+		ErrorHandler: serv.HandleError,
 	})
-	app.Get("/books", s.HandleListBooks)
+	app.Get("/books", serv.HandleListBooks)
 
 	t.Run("invalid page size", func(t *testing.T) {
 		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/books?page_size=-1", nil))

@@ -16,12 +16,10 @@ type Server struct {
 	stor *storage.Storage
 }
 
-func newServer() *Server {
-	conf := config.MustLoad()
-
+func newServer(conf *config.Config, stor *storage.Storage) *Server {
 	return &Server{
 		conf: conf,
-		stor: storage.New(conf),
+		stor: stor,
 	}
 }
 

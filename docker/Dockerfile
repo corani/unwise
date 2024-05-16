@@ -5,9 +5,12 @@ WORKDIR /src
 COPY . . 
 
 ARG CGO_ENABLED=0
+ARG VERSION="snapshot"
+ENV VERSION ${VERSION}
 
-RUN mkdir /build                                                    \
- && go build -o /build/usr/bin/unwise ./cmd/unwise/                 \
+RUN mkdir -p /build/usr/bin                                         \
+ && ./build.sh -b                                                   \
+ && mv bin/unwise /build/usr/bin/                                   \
  && ldd /build/usr/bin/unwise | tr -s '[:blank:]' '\n'              \
   | grep '^/'                                                       \
   | xargs -I % sh -c 'mkdir -p /build/$(dirname %); cp % /build/%;' 
@@ -19,6 +22,6 @@ COPY --from=builder --chown=1000:1000 /build /
 
 USER 1000:1000
 
-EXPOSE 3128
+EXPOSE 3123
 
 CMD [ "/usr/bin/unwise" ]
