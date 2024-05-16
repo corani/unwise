@@ -19,6 +19,14 @@ func TestVersion(t *testing.T) {
 			set: " trim me ",
 			exp: "trim me",
 		},
+		{
+			set: "v0.0.3",
+			exp: "v0.0.3",
+		},
+		{
+			set: "16/merge",
+			exp: "pr-16",
+		},
 	}
 
 	for _, tc := range tt {
