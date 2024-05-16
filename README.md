@@ -19,9 +19,11 @@ highlights and notes to Readwise automatically". In the settings, enter the Toke
 
 ## Obsidian 
 
-I'm using the [Obsidian Readwise (Community Plugin)](https://github.com/renehernandez/obsidian-readwise) 
-to import my highlights into Obsidian. To allow for setting a custom API server location, use the 
-following patch: [Add setting for API server location](https://github.com/algocentric/obsidian-readwise/commit/f2da99bd9d387536171a1ed37217c5548b236ee4)
+I'm using my own fork of the the [Obsidian Readwise (Community Plugin)](https://github.com/renehernandez/obsidian-readwise) 
+to import my highlights into Obsidian: [corani/obsidian-readwise](https://github.com/corani/obsidian-readwise). This allows
+to set the API server location in the settings and supports the "chapter" property for highlights.
+
+You can install the plugin via [BRAT](https://tfthacker.com/BRAT).
 
 ## Endpoints
 
@@ -37,7 +39,12 @@ following patch: [Add setting for API server location](https://github.com/algoce
 Run the following command:
 
 ```sh
-$ go run ./cmd/unwise/
+$ ./build.sh -b
+[INFO] Building unwise version dev/371e928027a8c9f03dccf5b59acd07640c52e4ea
+[CMD ] go build -o bin/unwise ./cmd/unwise/
+[TIME] took 0m0.186s
+
+$ ./bin/unwise
 
 16:13:41 INFO generated new token token=68ef286d-c71a-4225-aba4-1e4cd6633fc4
 
@@ -61,7 +68,11 @@ a `.env` file):
 | `LOGLEVEL`  | Log Level                     | `info`      |
 | `REST_ADDR` | Address to listen on          | `:3123`     |
 | `REST_PATH` | Base path to listen on        | `/api/v2`   |
+| `DATA_PATH` | Path to store data            | `/tmp`      |
 | `TOKEN`     | Authentication token          | (generated) |
+
+Note: if you don't provide a `TOKEN`, the application will generate one and print it to the
+console during startup.
 
 ## Docker 
 
@@ -76,3 +87,48 @@ Or using docker compose:
 ```sh
 $ docker-compose -f docker/docker-compose.yml up
 ```
+
+## Traefik
+
+I'm running the app behind Traefik, so I can use Let's Encrypt for SSL. Here is an example: 
+
+```yaml
+services:
+  unwise:
+    image: "ghcr.io/corani/unwise:latest"
+    container_name: "unwise"
+    user: "${MY_UID}:${MY_GID}"
+    env_file:
+      - "./unwise/unwise.env"
+    volumes:
+      - "./unwise/data:/data"
+    restart: "unless-stopped"
+    networks:
+      - "proxy"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      # Replace with your own domain name.
+      - "traefik.http.routers.unwise.rule=Host(`unwise.example.com`)"
+      # The 'websecure' entryPoint is basically your HTTPS entrypoint.
+      - "traefik.http.routers.unwise.entrypoints=websecure"
+      - "traefik.http.routers.unwise.service=unwise"
+      - "traefik.http.services.unwise.loadbalancer.server.port=3123"
+      - "traefik.http.routers.unwise.tls=true"
+      # Replace the string 'letsencrypt' with your own certificate resolver
+      - "traefik.http.routers.unwise.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.unwise.middlewares=unwisecors"
+      # The part needed for CORS to work on Traefik 2.x starts here
+      - "traefik.http.middlewares.unwisecors.headers.accesscontrolallowmethods=GET,PUT,POST,HEAD,DELETE"
+      - "traefik.http.middlewares.unwisecors.headers.accesscontrolallowheaders=accept,authorization,content-type,origin,referer"
+      - "traefik.http.middlewares.unwisecors.headers.accesscontrolalloworiginlist=app://obsidian.md,capacitor://localhost,http://localhost"
+      - "traefik.http.middlewares.unwisecors.headers.accesscontrolmaxage=3600"
+      - "traefik.http.middlewares.unwisecors.headers.addvaryheader=true"
+      - "traefik.http.middlewares.unwisecors.headers.accessControlAllowCredentials=true"
+```
+
+## TODO
+
+Currently data is only kept in memory, this needs to be persisted so we don't loose anything when
+the app is restarted. Note: as there are no "delete" APIs we probably need some mechanism to remove
+data after some retention period.
