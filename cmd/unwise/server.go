@@ -13,10 +13,10 @@ import (
 
 type Server struct {
 	conf *config.Config
-	stor *storage.Storage
+	stor storage.Storage
 }
 
-func newServer(conf *config.Config, stor *storage.Storage) *Server {
+func newServer(conf *config.Config, stor storage.Storage) *Server {
 	return &Server{
 		conf: conf,
 		stor: stor,

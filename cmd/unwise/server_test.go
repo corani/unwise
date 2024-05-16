@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/corani/unwise/internal/config"
-	"github.com/corani/unwise/internal/storage"
+	"github.com/corani/unwise/internal/storage/mem"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -111,7 +111,7 @@ func TestServer_HandleError(t *testing.T) {
 func TestServer_HandleCreateHighlights(t *testing.T) {
 	rq := require.New(t)
 	conf := config.MustLoad()
-	stor := storage.New(conf)
+	stor := mem.New(conf)
 	serv := newServer(conf, stor)
 
 	app := fiber.New(fiber.Config{
@@ -155,7 +155,7 @@ func TestServer_HandleCreateHighlights(t *testing.T) {
 func TestServer_HandleListHighlights(t *testing.T) {
 	rq := require.New(t)
 	conf := config.MustLoad()
-	stor := storage.New(conf)
+	stor := mem.New(conf)
 	serv := newServer(conf, stor)
 
 	app := fiber.New(fiber.Config{
@@ -204,14 +204,14 @@ func TestServer_HandleListHighlights(t *testing.T) {
 		rq.NoError(err)
 
 		rq.Equal(http.StatusOK, resp.StatusCode)
-		bodyJSONEq(t, `{}`, resp.Body)
+		bodyJSONEq(t, `{"results":null}`, resp.Body)
 	})
 }
 
 func TestServer_HandleListBooks(t *testing.T) {
 	rq := require.New(t)
 	conf := config.MustLoad()
-	stor := storage.New(conf)
+	stor := mem.New(conf)
 	serv := newServer(conf, stor)
 
 	app := fiber.New(fiber.Config{
@@ -260,7 +260,7 @@ func TestServer_HandleListBooks(t *testing.T) {
 		rq.NoError(err)
 
 		rq.Equal(http.StatusOK, resp.StatusCode)
-		bodyJSONEq(t, `{}`, resp.Body)
+		bodyJSONEq(t, `{"results":null}`, resp.Body)
 	})
 }
 

@@ -2,12 +2,12 @@ package main
 
 import (
 	"github.com/corani/unwise/internal/config"
-	"github.com/corani/unwise/internal/storage"
+	"github.com/corani/unwise/internal/storage/mem"
 )
 
 func main() {
 	conf := config.MustLoad()
-	stor := storage.New(conf)
+	stor := mem.New(conf)
 	serv := newServer(conf, stor)
 	app := newApp(serv)
 

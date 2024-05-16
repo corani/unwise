@@ -2,6 +2,13 @@
 
 prog=$(realpath "$0")
 root=$(dirname "$prog")
+rc=0
+
+function set_rc {
+    if [ "$1" -ne 0 ]; then
+        rc=$1
+    fi
+}
 
 function log_notice {
     label="[INFO]"
@@ -36,14 +43,13 @@ function log_error {
 
     # shellcheck disable=SC2145
     echo "${label} $@"
-    rc=1
+    set_rc 1
 }
 
 function log_cmd {
     # shellcheck disable=SC2145
     echo "[CMD ] $@"
 }
-
 
 function do_echo {
     # shellcheck disable=SC2145
@@ -58,8 +64,8 @@ function do_echo {
     time "$@"
     code=$?
     if [ $code -ne 0 ]; then
-        rc=$code
         log_error "return code $rc"
+        set_rc $code
     fi
 }
 
@@ -141,3 +147,5 @@ while [ "$#" -gt "0" ]; do
         ;;
   esac
 done
+
+exit "${rc}"
