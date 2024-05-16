@@ -6,9 +6,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	fake "github.com/corani/unwise/fakes/storage"
 	"github.com/corani/unwise/internal/config"
-	"github.com/corani/unwise/internal/storage/mem"
+	"github.com/corani/unwise/internal/storage"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,194 +76,328 @@ func TestServer_HandleAuth(t *testing.T) {
 }
 
 func TestServer_HandleError(t *testing.T) {
-	rq := require.New(t)
-	s := newServer(config.MustLoad(), nil)
+	tt := []struct {
+		name     string
+		endpoint string
+		expCode  int
+		expBody  string
+	}{
+		{
+			name:     "fiber error",
+			endpoint: "/error",
+			expCode:  http.StatusNotFound,
+			expBody: `{
+				"error":"Cannot GET /error",
+				"code":404,
+				"details":"Cannot GET /error"
+			}`,
+		},
+		{
+			name:     "custom error",
+			endpoint: "/custom",
+			expCode:  http.StatusInternalServerError,
+			expBody: `{
+				"error":"assert.AnError general error for testing",
+				"code":500
+			}`,
+		},
+	}
 
-	app := fiber.New(fiber.Config{
-		ErrorHandler: s.HandleError,
-	})
-	app.Get("/custom", func(c *fiber.Ctx) error {
-		return assert.AnError
-	})
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			rq := require.New(t)
+			s := newServer(config.MustLoad(), nil)
 
-	t.Run("fiber error", func(t *testing.T) {
-		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/error", nil))
-		rq.NoError(err)
+			app := fiber.New(fiber.Config{
+				ErrorHandler: s.HandleError,
+			})
+			app.Get("/custom", func(c *fiber.Ctx) error {
+				return assert.AnError
+			})
 
-		rq.Equal(http.StatusNotFound, resp.StatusCode)
-		bodyJSONEq(t, `{
-			"error":"Cannot GET /error",
-			"code":404,
-			"details":"Cannot GET /error"
-		}`, resp.Body)
-	})
+			resp, err := app.Test(httptest.NewRequest(http.MethodGet, tc.endpoint, nil))
+			rq.NoError(err)
 
-	t.Run("custom error", func(t *testing.T) {
-		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/custom", nil))
-		rq.NoError(err)
-
-		rq.Equal(http.StatusInternalServerError, resp.StatusCode)
-		bodyJSONEq(t, `{
-			"error":"assert.AnError general error for testing",
-			"code":500
-		}`, resp.Body)
-	})
+			rq.Equal(tc.expCode, resp.StatusCode)
+			bodyJSONEq(t, tc.expBody, resp.Body)
+		})
+	}
 }
 
 func TestServer_HandleCreateHighlights(t *testing.T) {
-	rq := require.New(t)
-	conf := config.MustLoad()
-	stor := mem.New(conf)
-	serv := newServer(conf, stor)
+	tt := []struct {
+		name        string
+		content     string
+		contentType string
+		setup       func(*fake.Storage)
+		expCode     int
+		expBody     string
+	}{
+		{
+			name:        "invalid content type",
+			content:     "",
+			contentType: "",
+			expCode:     http.StatusBadRequest,
+			expBody: `{
+				"error":"Bad Request",
+				"code":400,
+				"details":"Bad Request: Unprocessable Entity (raw=\"\")"
+			}`,
+		},
+		{
+			name:        "invalid body",
+			content:     "invalid",
+			contentType: fiber.MIMEApplicationJSON,
+			expCode:     http.StatusBadRequest,
+			expBody: `{
+				"error":"Bad Request",
+				"code":400,
+				"details":"Bad Request: invalid character 'i' looking for beginning of value (raw=\"invalid\")"
+			}`,
+		},
+		{
+			name: "valid request",
+			content: `{
+				"highlights": [
+					{"title": "title1", "text": "text1"},
+					{"title": "title1", "text": "text2"}
+				]
+			}`,
+			contentType: fiber.MIMEApplicationJSON,
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().AddBook("title1", "", "").
+					Return(storage.Book{ID: 1}, true)
+				stor.EXPECT().AddHighlight(storage.Book{ID: 1}, "text1", "", "", 0, "").
+					Return(storage.Highlight{ID: 1}, true)
+				stor.EXPECT().AddHighlight(storage.Book{ID: 1}, "text2", "", "", 0, "").
+					Return(storage.Highlight{ID: 2}, true)
+			},
+			expCode: http.StatusOK,
+			expBody: `[
+				{
+					"id": 1,
+					"author": "",
+					"title": "",
+					"category": "books",
+					"last_highlight_at": "0001-01-01T00:00:00Z",
+					"modified_highlights": [1,2],
+					"num_highlights": 2,
+					"source_url": "",
+					"updated": "0001-01-01T00:00:00Z"
+				}
+			]`,
+		},
+	}
 
-	app := fiber.New(fiber.Config{
-		ErrorHandler: serv.HandleError,
-	})
-	app.Post("/highlights", serv.HandleCreateHighlights)
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			rq := require.New(t)
 
-	t.Run("invalid content type", func(t *testing.T) {
-		resp, err := app.Test(httptest.NewRequest(http.MethodPost, "/highlights", nil))
-		rq.NoError(err)
-		rq.Equal(http.StatusBadRequest, resp.StatusCode)
-	})
+			stor := fake.NewStorage(t)
+			if tc.setup != nil {
+				tc.setup(stor)
+			}
 
-	t.Run("invalid body", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/highlights", strings.NewReader(`invalid`))
-		req.Header.Set("Content-Type", fiber.MIMEApplicationJSON)
+			conf := config.MustLoad()
+			serv := newServer(conf, stor)
 
-		resp, err := app.Test(req)
-		rq.NoError(err)
+			app := fiber.New(fiber.Config{
+				ErrorHandler: serv.HandleError,
+			})
+			app.Post("/highlights", serv.HandleCreateHighlights)
 
-		rq.Equal(http.StatusBadRequest, resp.StatusCode)
-		bodyJSONEq(t, `{
-			"error":"Bad Request",
-			"code":400,
-			"details":"Bad Request: invalid character 'i' looking for beginning of value (raw=\"invalid\")"
-		}`, resp.Body)
-	})
+			req := httptest.NewRequest(http.MethodPost, "/highlights", strings.NewReader(tc.content))
 
-	t.Run("valid content type", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/highlights", strings.NewReader(`{}`))
-		req.Header.Set("Content-Type", fiber.MIMEApplicationJSON)
+			if tc.contentType != "" {
+				req.Header.Set("Content-Type", tc.contentType)
+			}
 
-		resp, err := app.Test(req)
-		rq.NoError(err)
+			resp, err := app.Test(req)
+			rq.NoError(err)
 
-		rq.Equal(http.StatusOK, resp.StatusCode)
-		bodyJSONEq(t, `null`, resp.Body)
-	})
+			rq.Equal(tc.expCode, resp.StatusCode)
+			bodyJSONEq(t, tc.expBody, resp.Body)
+		})
+	}
 }
 
 func TestServer_HandleListHighlights(t *testing.T) {
-	rq := require.New(t)
-	conf := config.MustLoad()
-	stor := mem.New(conf)
-	serv := newServer(conf, stor)
+	tt := []struct {
+		name     string
+		endpoint string
+		setup    func(*fake.Storage)
+		expCode  int
+		expBody  string
+	}{
+		{
+			name:     "invalid page size",
+			endpoint: "/highlights?page_size=-1",
+			expCode:  http.StatusBadRequest,
+			expBody: `{
+				"error":"Bad Request",
+				"code":400,
+				"details":"Bad Request: invalid page_size -1"
+			}`,
+		},
+		{
+			name:     "invalid updated__lt",
+			endpoint: "/highlights?updated__lt=invalid",
+			expCode:  http.StatusBadRequest,
+			expBody: `{
+				"error":"Bad Request",
+				"code":400,
+				"details":"Bad Request: invalid updated__lt \"invalid\""
+			}`,
+		},
+		{
+			name:     "invalid updated__gt",
+			endpoint: "/highlights?updated__gt=invalid",
+			expCode:  http.StatusBadRequest,
+			expBody: `{
+				"error":"Bad Request",
+				"code":400,
+				"details":"Bad Request: invalid updated__gt \"invalid\""
+			}`,
+		},
+		{
+			name:     "valid request",
+			endpoint: "/highlights",
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().ListHighlights(time.Time{}, time.Time{}).Return([]storage.Highlight{
+					{ID: 1},
+				})
+			},
+			expCode: http.StatusOK,
+			expBody: `{"results":[
+				{
+					"id": 1,
+					"book_id": 0,
+					"chapter": "",
+					"location": 0,
+					"text": "",
+					"note": "",
+					"url": "",
+					"updated": "0001-01-01T00:00:00Z"
+				}
+			]}`,
+		},
+	}
 
-	app := fiber.New(fiber.Config{
-		ErrorHandler: serv.HandleError,
-	})
-	app.Get("/highlights", serv.HandleListHighlights)
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			rq := require.New(t)
 
-	t.Run("invalid page size", func(t *testing.T) {
-		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/highlights?page_size=-1", nil))
-		rq.NoError(err)
-		rq.Equal(http.StatusBadRequest, resp.StatusCode)
+			stor := fake.NewStorage(t)
+			if tc.setup != nil {
+				tc.setup(stor)
+			}
 
-		bodyJSONEq(t, `{
-			"error":"Bad Request",
-			"code":400,
-			"details":"Bad Request: invalid page_size -1"
-		}`, resp.Body)
-	})
+			conf := config.MustLoad()
+			serv := newServer(conf, stor)
 
-	t.Run("invalid updated__lt", func(t *testing.T) {
-		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/highlights?updated__lt=invalid", nil))
-		rq.NoError(err)
-		rq.Equal(http.StatusBadRequest, resp.StatusCode)
+			app := fiber.New(fiber.Config{
+				ErrorHandler: serv.HandleError,
+			})
+			app.Get("/highlights", serv.HandleListHighlights)
 
-		bodyJSONEq(t, `{
-			"error":"Bad Request",
-			"code":400,
-			"details":"Bad Request: invalid updated__lt \"invalid\""
-		}`, resp.Body)
-	})
+			req := httptest.NewRequest(http.MethodGet, tc.endpoint, nil)
 
-	t.Run("invalid updated__gt", func(t *testing.T) {
-		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/highlights?updated__gt=invalid", nil))
-		rq.NoError(err)
-		rq.Equal(http.StatusBadRequest, resp.StatusCode)
+			resp, err := app.Test(req)
+			rq.NoError(err)
 
-		bodyJSONEq(t, `{
-			"error":"Bad Request",
-			"code":400,
-			"details":"Bad Request: invalid updated__gt \"invalid\""
-		}`, resp.Body)
-	})
-
-	t.Run("valid body", func(t *testing.T) {
-		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/highlights", nil))
-		rq.NoError(err)
-
-		rq.Equal(http.StatusOK, resp.StatusCode)
-		bodyJSONEq(t, `{"results":null}`, resp.Body)
-	})
+			rq.Equal(tc.expCode, resp.StatusCode)
+			bodyJSONEq(t, tc.expBody, resp.Body)
+		})
+	}
 }
 
 func TestServer_HandleListBooks(t *testing.T) {
-	rq := require.New(t)
-	conf := config.MustLoad()
-	stor := mem.New(conf)
-	serv := newServer(conf, stor)
+	tt := []struct {
+		name     string
+		endpoint string
+		setup    func(*fake.Storage)
+		expCode  int
+		expBody  string
+	}{
+		{
+			name:     "invalid page size",
+			endpoint: "/books?page_size=-1",
+			expCode:  http.StatusBadRequest,
+			expBody: `{
+				"error":"Bad Request",
+				"code":400,
+				"details":"Bad Request: invalid page_size -1"
+			}`,
+		},
+		{
+			name:     "invalid updated__lt",
+			endpoint: "/books?updated__lt=invalid",
+			expCode:  http.StatusBadRequest,
+			expBody: `{
+				"error":"Bad Request",
+				"code":400,
+				"details":"Bad Request: invalid updated__lt \"invalid\""
+			}`,
+		},
+		{
+			name:     "invalid updated__gt",
+			endpoint: "/books?updated__gt=invalid",
+			expCode:  http.StatusBadRequest,
+			expBody: `{
+				"error":"Bad Request",
+				"code":400,
+				"details":"Bad Request: invalid updated__gt \"invalid\""
+			}`,
+		},
+		{
+			name:     "valid request",
+			endpoint: "/books",
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().ListBooks(time.Time{}, time.Time{}).Return([]storage.Book{
+					{ID: 1},
+				})
+			},
+			expCode: http.StatusOK,
+			expBody: `{"results":[
+				{
+					"id": 1,
+					"category": "books",
+					"author": "",
+					"title": "",
+					"num_highlights": 0,
+					"source_url": "",
+					"updated": "0001-01-01T00:00:00Z"
+				}
+			]}`,
+		},
+	}
 
-	app := fiber.New(fiber.Config{
-		ErrorHandler: serv.HandleError,
-	})
-	app.Get("/books", serv.HandleListBooks)
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			rq := require.New(t)
 
-	t.Run("invalid page size", func(t *testing.T) {
-		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/books?page_size=-1", nil))
-		rq.NoError(err)
-		rq.Equal(http.StatusBadRequest, resp.StatusCode)
+			stor := fake.NewStorage(t)
+			if tc.setup != nil {
+				tc.setup(stor)
+			}
 
-		bodyJSONEq(t, `{
-			"error":"Bad Request",
-			"code":400,
-			"details": "Bad Request: invalid page_size -1"
-		}`, resp.Body)
-	})
+			conf := config.MustLoad()
+			serv := newServer(conf, stor)
 
-	t.Run("invalid updated__lt", func(t *testing.T) {
-		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/books?updated__lt=invalid", nil))
-		rq.NoError(err)
-		rq.Equal(http.StatusBadRequest, resp.StatusCode)
+			app := fiber.New(fiber.Config{
+				ErrorHandler: serv.HandleError,
+			})
+			app.Get("/books", serv.HandleListBooks)
 
-		bodyJSONEq(t, `{
-			"error":"Bad Request",
-			"code":400,
-			"details":"Bad Request: invalid updated__lt \"invalid\""
-		}`, resp.Body)
-	})
+			req := httptest.NewRequest(http.MethodGet, tc.endpoint, nil)
 
-	t.Run("invalid updated__gt", func(t *testing.T) {
-		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/books?updated__gt=invalid", nil))
-		rq.NoError(err)
-		rq.Equal(http.StatusBadRequest, resp.StatusCode)
+			resp, err := app.Test(req)
+			rq.NoError(err)
 
-		bodyJSONEq(t, `{
-			"error":"Bad Request",
-			"code":400,
-			"details":"Bad Request: invalid updated__gt \"invalid\""
-		}`, resp.Body)
-	})
-
-	t.Run("valid body", func(t *testing.T) {
-		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/books", nil))
-		rq.NoError(err)
-
-		rq.Equal(http.StatusOK, resp.StatusCode)
-		bodyJSONEq(t, `{"results":null}`, resp.Body)
-	})
+			rq.Equal(tc.expCode, resp.StatusCode)
+			bodyJSONEq(t, tc.expBody, resp.Body)
+		})
+	}
 }
 
 func bodyJSONEq(t *testing.T, exp string, act io.ReadCloser) {
