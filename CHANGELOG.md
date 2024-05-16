@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.0.8](https://github.com/corani/unwise/tree/v0.0.8) (2024-05-16)
+
+[Full Changelog](https://github.com/corani/unwise/compare/v0.0.7...v0.0.8)
+
+**Merged pull requests:**
+
+- chore: fix release action [\#27](https://github.com/corani/unwise/pull/27) ([corani](https://github.com/corani))
+
 ## [v0.0.7](https://github.com/corani/unwise/tree/v0.0.7) (2024-05-16)
 
 [Full Changelog](https://github.com/corani/unwise/compare/v0.0.6...v0.0.7)
