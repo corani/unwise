@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"time"
 )
 
@@ -9,26 +10,27 @@ const DefaultTitle = "Quotes"
 type Storage interface {
 	// AddBook adds a new book to the storage. If the book already exists, it returns the
 	// existing book.
-	AddBook(title, author, source string) (Book, bool)
+	AddBook(ctx context.Context, title, author, source string) (Book, error)
 
 	// AddHighlight adds a new highlight to the storage. If the highlight already exists,
 	// it returns the existing highlight.
-	AddHighlight(b Book, text, note, chapter string, location int, url string) (Highlight, bool)
+	AddHighlight(ctx context.Context, b Book, text, note, chapter string, location int, url string) (Highlight, error)
 
 	// ListBooks returns a list of books from the storage.
-	ListBooks(lt, gt time.Time) []Book
+	ListBooks(ctx context.Context, lt, gt time.Time) ([]Book, error)
 
 	// ListHighlights returns a list of highlights from the storage.
-	ListHighlights(lt, gt time.Time) []Highlight
+	ListHighlights(ctx context.Context, lt, gt time.Time) ([]Highlight, error)
 }
 
 type Book struct {
-	ID         int
-	Title      string
-	Author     string
-	SourceURL  string
-	Updated    time.Time
-	Highlights []*Highlight
+	ID            int
+	Title         string
+	Author        string
+	SourceURL     string
+	Updated       time.Time
+	NumHighlights int
+	LastHighlight time.Time
 }
 
 type Highlight struct {
@@ -40,20 +42,4 @@ type Highlight struct {
 	Location int
 	URL      string
 	Updated  time.Time
-}
-
-func (b *Book) NumHighlights() int {
-	return len(b.Highlights)
-}
-
-func (b *Book) LastHighlight() time.Time {
-	last := time.Time{}
-
-	for _, h := range b.Highlights {
-		if h.Updated.After(last) {
-			last = h.Updated
-		}
-	}
-
-	return last
 }

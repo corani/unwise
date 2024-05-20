@@ -1,21 +1,22 @@
 package main
 
 import (
+	"context"
+
 	"github.com/corani/unwise/internal/config"
-	"github.com/corani/unwise/internal/storage/mem"
 	"github.com/corani/unwise/internal/storage/sqlite"
 )
 
 func main() {
 	conf := config.MustLoad()
-	stor := mem.New(conf)
-	serv := newServer(conf, stor)
-	app := newApp(serv)
 
-	_, err := sqlite.New(conf)
+	stor, err := sqlite.New(context.Background(), conf)
 	if err != nil {
 		conf.Logger.Errorf("sqlite: %v", err)
 	}
+
+	serv := newServer(conf, stor)
+	app := newApp(serv)
 
 	conf.PrintBanner()
 

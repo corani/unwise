@@ -13,14 +13,15 @@ import (
 )
 
 type Config struct {
-	LogLevel string `env:"LOGLEVEL" envDefault:"info"`
-	RestAddr string `env:"REST_ADDR" envDefault:":3123"`
-	RestPath string `env:"REST_PATH" envDefault:"/api/v2"`
-	DataPath string `env:"DATA_PATH" envDefault:"/tmp"`
-	Token    string `env:"TOKEN"`
-	Version  string
-	Hash     string
-	Logger   *log.Logger
+	LogLevel  string `env:"LOGLEVEL" envDefault:"info"`
+	RestAddr  string `env:"REST_ADDR" envDefault:":3123"`
+	RestPath  string `env:"REST_PATH" envDefault:"/api/v2"`
+	DataPath  string `env:"DATA_PATH" envDefault:"/tmp"`
+	Token     string `env:"TOKEN"`
+	DropTable string `env:"DROP_TABLE" envDefault:"false"`
+	Version   string
+	Hash      string
+	Logger    *log.Logger
 }
 
 func MustLoad() *Config {

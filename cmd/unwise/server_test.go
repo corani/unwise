@@ -13,6 +13,7 @@ import (
 	"github.com/corani/unwise/internal/storage"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -165,12 +166,12 @@ func TestServer_HandleCreateHighlights(t *testing.T) {
 			}`,
 			contentType: fiber.MIMEApplicationJSON,
 			setup: func(stor *fake.Storage) {
-				stor.EXPECT().AddBook("title1", "", "").
-					Return(storage.Book{ID: 1}, true)
-				stor.EXPECT().AddHighlight(storage.Book{ID: 1}, "text1", "", "", 0, "").
-					Return(storage.Highlight{ID: 1}, true)
-				stor.EXPECT().AddHighlight(storage.Book{ID: 1}, "text2", "", "", 0, "").
-					Return(storage.Highlight{ID: 2}, true)
+				stor.EXPECT().AddBook(mock.Anything, "title1", "", "").
+					Return(storage.Book{ID: 1}, nil)
+				stor.EXPECT().AddHighlight(mock.Anything, storage.Book{ID: 1}, "text1", "", "", 0, "").
+					Return(storage.Highlight{ID: 1}, nil)
+				stor.EXPECT().AddHighlight(mock.Anything, storage.Book{ID: 1}, "text2", "", "", 0, "").
+					Return(storage.Highlight{ID: 2}, nil)
 			},
 			expCode: http.StatusOK,
 			expBody: `[
@@ -263,9 +264,9 @@ func TestServer_HandleListHighlights(t *testing.T) {
 			name:     "valid request",
 			endpoint: "/highlights",
 			setup: func(stor *fake.Storage) {
-				stor.EXPECT().ListHighlights(time.Time{}, time.Time{}).Return([]storage.Highlight{
+				stor.EXPECT().ListHighlights(mock.Anything, time.Time{}, time.Time{}).Return([]storage.Highlight{
 					{ID: 1},
-				})
+				}, nil)
 			},
 			expCode: http.StatusOK,
 			expBody: `{"results":[
@@ -353,9 +354,9 @@ func TestServer_HandleListBooks(t *testing.T) {
 			name:     "valid request",
 			endpoint: "/books",
 			setup: func(stor *fake.Storage) {
-				stor.EXPECT().ListBooks(time.Time{}, time.Time{}).Return([]storage.Book{
+				stor.EXPECT().ListBooks(mock.Anything, time.Time{}, time.Time{}).Return([]storage.Book{
 					{ID: 1},
-				})
+				}, nil)
 			},
 			expCode: http.StatusOK,
 			expBody: `{"results":[
