@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/corani/unwise/internal/config"
 	"github.com/corani/unwise/internal/storage/mem"
+	"github.com/corani/unwise/internal/storage/sqlite"
 )
 
 func main() {
@@ -10,6 +11,11 @@ func main() {
 	stor := mem.New(conf)
 	serv := newServer(conf, stor)
 	app := newApp(serv)
+
+	_, err := sqlite.New(conf)
+	if err != nil {
+		conf.Logger.Errorf("sqlite: %v", err)
+	}
 
 	conf.PrintBanner()
 
