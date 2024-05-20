@@ -3,7 +3,7 @@ module github.com/corani/unwise
 go 1.22.2
 
 require (
-	github.com/DATA-DOG/go-sqlmock v1.5.0
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/caarlos0/env/v11 v11.0.0
 	github.com/charmbracelet/log v0.4.0
 	github.com/gofiber/fiber/v2 v2.52.4
