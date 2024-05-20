@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	context "context"
+
 	storage "github.com/corani/unwise/internal/storage"
 	mock "github.com/stretchr/testify/mock"
 
@@ -22,29 +24,29 @@ func (_m *Storage) EXPECT() *Storage_Expecter {
 	return &Storage_Expecter{mock: &_m.Mock}
 }
 
-// AddBook provides a mock function with given fields: title, author, source
-func (_m *Storage) AddBook(title string, author string, source string) (storage.Book, bool) {
-	ret := _m.Called(title, author, source)
+// AddBook provides a mock function with given fields: ctx, title, author, source
+func (_m *Storage) AddBook(ctx context.Context, title string, author string, source string) (storage.Book, error) {
+	ret := _m.Called(ctx, title, author, source)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddBook")
 	}
 
 	var r0 storage.Book
-	var r1 bool
-	if rf, ok := ret.Get(0).(func(string, string, string) (storage.Book, bool)); ok {
-		return rf(title, author, source)
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (storage.Book, error)); ok {
+		return rf(ctx, title, author, source)
 	}
-	if rf, ok := ret.Get(0).(func(string, string, string) storage.Book); ok {
-		r0 = rf(title, author, source)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) storage.Book); ok {
+		r0 = rf(ctx, title, author, source)
 	} else {
 		r0 = ret.Get(0).(storage.Book)
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string, string) bool); ok {
-		r1 = rf(title, author, source)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, title, author, source)
 	} else {
-		r1 = ret.Get(1).(bool)
+		r1 = ret.Error(1)
 	}
 
 	return r0, r1
@@ -56,53 +58,54 @@ type Storage_AddBook_Call struct {
 }
 
 // AddBook is a helper method to define mock.On call
+//   - ctx context.Context
 //   - title string
 //   - author string
 //   - source string
-func (_e *Storage_Expecter) AddBook(title interface{}, author interface{}, source interface{}) *Storage_AddBook_Call {
-	return &Storage_AddBook_Call{Call: _e.mock.On("AddBook", title, author, source)}
+func (_e *Storage_Expecter) AddBook(ctx interface{}, title interface{}, author interface{}, source interface{}) *Storage_AddBook_Call {
+	return &Storage_AddBook_Call{Call: _e.mock.On("AddBook", ctx, title, author, source)}
 }
 
-func (_c *Storage_AddBook_Call) Run(run func(title string, author string, source string)) *Storage_AddBook_Call {
+func (_c *Storage_AddBook_Call) Run(run func(ctx context.Context, title string, author string, source string)) *Storage_AddBook_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
 	})
 	return _c
 }
 
-func (_c *Storage_AddBook_Call) Return(_a0 storage.Book, _a1 bool) *Storage_AddBook_Call {
+func (_c *Storage_AddBook_Call) Return(_a0 storage.Book, _a1 error) *Storage_AddBook_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *Storage_AddBook_Call) RunAndReturn(run func(string, string, string) (storage.Book, bool)) *Storage_AddBook_Call {
+func (_c *Storage_AddBook_Call) RunAndReturn(run func(context.Context, string, string, string) (storage.Book, error)) *Storage_AddBook_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// AddHighlight provides a mock function with given fields: b, text, note, chapter, location, url
-func (_m *Storage) AddHighlight(b storage.Book, text string, note string, chapter string, location int, url string) (storage.Highlight, bool) {
-	ret := _m.Called(b, text, note, chapter, location, url)
+// AddHighlight provides a mock function with given fields: ctx, b, text, note, chapter, location, url
+func (_m *Storage) AddHighlight(ctx context.Context, b storage.Book, text string, note string, chapter string, location int, url string) (storage.Highlight, error) {
+	ret := _m.Called(ctx, b, text, note, chapter, location, url)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddHighlight")
 	}
 
 	var r0 storage.Highlight
-	var r1 bool
-	if rf, ok := ret.Get(0).(func(storage.Book, string, string, string, int, string) (storage.Highlight, bool)); ok {
-		return rf(b, text, note, chapter, location, url)
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, storage.Book, string, string, string, int, string) (storage.Highlight, error)); ok {
+		return rf(ctx, b, text, note, chapter, location, url)
 	}
-	if rf, ok := ret.Get(0).(func(storage.Book, string, string, string, int, string) storage.Highlight); ok {
-		r0 = rf(b, text, note, chapter, location, url)
+	if rf, ok := ret.Get(0).(func(context.Context, storage.Book, string, string, string, int, string) storage.Highlight); ok {
+		r0 = rf(ctx, b, text, note, chapter, location, url)
 	} else {
 		r0 = ret.Get(0).(storage.Highlight)
 	}
 
-	if rf, ok := ret.Get(1).(func(storage.Book, string, string, string, int, string) bool); ok {
-		r1 = rf(b, text, note, chapter, location, url)
+	if rf, ok := ret.Get(1).(func(context.Context, storage.Book, string, string, string, int, string) error); ok {
+		r1 = rf(ctx, b, text, note, chapter, location, url)
 	} else {
-		r1 = ret.Get(1).(bool)
+		r1 = ret.Error(1)
 	}
 
 	return r0, r1
@@ -114,51 +117,62 @@ type Storage_AddHighlight_Call struct {
 }
 
 // AddHighlight is a helper method to define mock.On call
+//   - ctx context.Context
 //   - b storage.Book
 //   - text string
 //   - note string
 //   - chapter string
 //   - location int
 //   - url string
-func (_e *Storage_Expecter) AddHighlight(b interface{}, text interface{}, note interface{}, chapter interface{}, location interface{}, url interface{}) *Storage_AddHighlight_Call {
-	return &Storage_AddHighlight_Call{Call: _e.mock.On("AddHighlight", b, text, note, chapter, location, url)}
+func (_e *Storage_Expecter) AddHighlight(ctx interface{}, b interface{}, text interface{}, note interface{}, chapter interface{}, location interface{}, url interface{}) *Storage_AddHighlight_Call {
+	return &Storage_AddHighlight_Call{Call: _e.mock.On("AddHighlight", ctx, b, text, note, chapter, location, url)}
 }
 
-func (_c *Storage_AddHighlight_Call) Run(run func(b storage.Book, text string, note string, chapter string, location int, url string)) *Storage_AddHighlight_Call {
+func (_c *Storage_AddHighlight_Call) Run(run func(ctx context.Context, b storage.Book, text string, note string, chapter string, location int, url string)) *Storage_AddHighlight_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(storage.Book), args[1].(string), args[2].(string), args[3].(string), args[4].(int), args[5].(string))
+		run(args[0].(context.Context), args[1].(storage.Book), args[2].(string), args[3].(string), args[4].(string), args[5].(int), args[6].(string))
 	})
 	return _c
 }
 
-func (_c *Storage_AddHighlight_Call) Return(_a0 storage.Highlight, _a1 bool) *Storage_AddHighlight_Call {
+func (_c *Storage_AddHighlight_Call) Return(_a0 storage.Highlight, _a1 error) *Storage_AddHighlight_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *Storage_AddHighlight_Call) RunAndReturn(run func(storage.Book, string, string, string, int, string) (storage.Highlight, bool)) *Storage_AddHighlight_Call {
+func (_c *Storage_AddHighlight_Call) RunAndReturn(run func(context.Context, storage.Book, string, string, string, int, string) (storage.Highlight, error)) *Storage_AddHighlight_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// ListBooks provides a mock function with given fields: lt, gt
-func (_m *Storage) ListBooks(lt time.Time, gt time.Time) []storage.Book {
-	ret := _m.Called(lt, gt)
+// ListBooks provides a mock function with given fields: ctx, lt, gt
+func (_m *Storage) ListBooks(ctx context.Context, lt time.Time, gt time.Time) ([]storage.Book, error) {
+	ret := _m.Called(ctx, lt, gt)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListBooks")
 	}
 
 	var r0 []storage.Book
-	if rf, ok := ret.Get(0).(func(time.Time, time.Time) []storage.Book); ok {
-		r0 = rf(lt, gt)
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) ([]storage.Book, error)); ok {
+		return rf(ctx, lt, gt)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) []storage.Book); ok {
+		r0 = rf(ctx, lt, gt)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]storage.Book)
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time) error); ok {
+		r1 = rf(ctx, lt, gt)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // Storage_ListBooks_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBooks'
@@ -167,47 +181,58 @@ type Storage_ListBooks_Call struct {
 }
 
 // ListBooks is a helper method to define mock.On call
+//   - ctx context.Context
 //   - lt time.Time
 //   - gt time.Time
-func (_e *Storage_Expecter) ListBooks(lt interface{}, gt interface{}) *Storage_ListBooks_Call {
-	return &Storage_ListBooks_Call{Call: _e.mock.On("ListBooks", lt, gt)}
+func (_e *Storage_Expecter) ListBooks(ctx interface{}, lt interface{}, gt interface{}) *Storage_ListBooks_Call {
+	return &Storage_ListBooks_Call{Call: _e.mock.On("ListBooks", ctx, lt, gt)}
 }
 
-func (_c *Storage_ListBooks_Call) Run(run func(lt time.Time, gt time.Time)) *Storage_ListBooks_Call {
+func (_c *Storage_ListBooks_Call) Run(run func(ctx context.Context, lt time.Time, gt time.Time)) *Storage_ListBooks_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(time.Time), args[1].(time.Time))
+		run(args[0].(context.Context), args[1].(time.Time), args[2].(time.Time))
 	})
 	return _c
 }
 
-func (_c *Storage_ListBooks_Call) Return(_a0 []storage.Book) *Storage_ListBooks_Call {
-	_c.Call.Return(_a0)
+func (_c *Storage_ListBooks_Call) Return(_a0 []storage.Book, _a1 error) *Storage_ListBooks_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *Storage_ListBooks_Call) RunAndReturn(run func(time.Time, time.Time) []storage.Book) *Storage_ListBooks_Call {
+func (_c *Storage_ListBooks_Call) RunAndReturn(run func(context.Context, time.Time, time.Time) ([]storage.Book, error)) *Storage_ListBooks_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// ListHighlights provides a mock function with given fields: lt, gt
-func (_m *Storage) ListHighlights(lt time.Time, gt time.Time) []storage.Highlight {
-	ret := _m.Called(lt, gt)
+// ListHighlights provides a mock function with given fields: ctx, lt, gt
+func (_m *Storage) ListHighlights(ctx context.Context, lt time.Time, gt time.Time) ([]storage.Highlight, error) {
+	ret := _m.Called(ctx, lt, gt)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListHighlights")
 	}
 
 	var r0 []storage.Highlight
-	if rf, ok := ret.Get(0).(func(time.Time, time.Time) []storage.Highlight); ok {
-		r0 = rf(lt, gt)
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) ([]storage.Highlight, error)); ok {
+		return rf(ctx, lt, gt)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) []storage.Highlight); ok {
+		r0 = rf(ctx, lt, gt)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]storage.Highlight)
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time) error); ok {
+		r1 = rf(ctx, lt, gt)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // Storage_ListHighlights_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListHighlights'
@@ -216,25 +241,26 @@ type Storage_ListHighlights_Call struct {
 }
 
 // ListHighlights is a helper method to define mock.On call
+//   - ctx context.Context
 //   - lt time.Time
 //   - gt time.Time
-func (_e *Storage_Expecter) ListHighlights(lt interface{}, gt interface{}) *Storage_ListHighlights_Call {
-	return &Storage_ListHighlights_Call{Call: _e.mock.On("ListHighlights", lt, gt)}
+func (_e *Storage_Expecter) ListHighlights(ctx interface{}, lt interface{}, gt interface{}) *Storage_ListHighlights_Call {
+	return &Storage_ListHighlights_Call{Call: _e.mock.On("ListHighlights", ctx, lt, gt)}
 }
 
-func (_c *Storage_ListHighlights_Call) Run(run func(lt time.Time, gt time.Time)) *Storage_ListHighlights_Call {
+func (_c *Storage_ListHighlights_Call) Run(run func(ctx context.Context, lt time.Time, gt time.Time)) *Storage_ListHighlights_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(time.Time), args[1].(time.Time))
+		run(args[0].(context.Context), args[1].(time.Time), args[2].(time.Time))
 	})
 	return _c
 }
 
-func (_c *Storage_ListHighlights_Call) Return(_a0 []storage.Highlight) *Storage_ListHighlights_Call {
-	_c.Call.Return(_a0)
+func (_c *Storage_ListHighlights_Call) Return(_a0 []storage.Highlight, _a1 error) *Storage_ListHighlights_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *Storage_ListHighlights_Call) RunAndReturn(run func(time.Time, time.Time) []storage.Highlight) *Storage_ListHighlights_Call {
+func (_c *Storage_ListHighlights_Call) RunAndReturn(run func(context.Context, time.Time, time.Time) ([]storage.Highlight, error)) *Storage_ListHighlights_Call {
 	_c.Call.Return(run)
 	return _c
 }

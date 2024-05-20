@@ -35,6 +35,8 @@ func (s *Server) HandleAuth(c *fiber.Ctx) error {
 }
 
 func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
+	ctx := c.Context()
+
 	var req CreateHighlightRequest
 
 	if err := c.BodyParser(&req); err != nil {
@@ -52,8 +54,15 @@ func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
 
 	// TODO(daniel): NumHighlights and LastHighlightAt may not be correct.
 	for _, rh := range req.Highlights {
-		b, _ := s.stor.AddBook(rh.Title, rh.Author, rh.SourceURL)
-		h, _ := s.stor.AddHighlight(b, rh.Text, rh.Note, rh.Chapter, rh.Location, rh.HighlightURL)
+		b, err := s.stor.AddBook(ctx, rh.Title, rh.Author, rh.SourceURL)
+		if err != nil {
+			return err
+		}
+
+		h, err := s.stor.AddHighlight(ctx, b, rh.Text, rh.Note, rh.Chapter, rh.Location, rh.HighlightURL)
+		if err != nil {
+			return err
+		}
 
 		found := false
 
@@ -75,7 +84,7 @@ func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
 				Author:             b.Author,
 				SourceURL:          b.SourceURL,
 				Category:           HighlightCategoryBooks,
-				NumHighlights:      1,
+				NumHighlights:      b.NumHighlights + 1,
 				LastHighlightAt:    h.Updated.Format(time.RFC3339),
 				UpdatedAt:          h.Updated.Format(time.RFC3339),
 				ModifiedHighlights: []int{h.ID},
@@ -87,6 +96,8 @@ func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
 }
 
 func (s *Server) HandleListHighlights(c *fiber.Ctx) error {
+	ctx := c.Context()
+
 	p, err := parseParams(c)
 	if err != nil {
 		return err
@@ -99,7 +110,12 @@ func (s *Server) HandleListHighlights(c *fiber.Ctx) error {
 
 	var res ListHighlightsResponse
 
-	for _, highlight := range s.stor.ListHighlights(p.updatedLT, p.updatedGT) {
+	hs, err := s.stor.ListHighlights(ctx, p.updatedLT, p.updatedGT)
+	if err != nil {
+		return err
+	}
+
+	for _, highlight := range hs {
 		res.Results = append(res.Results, ListHighlight{
 			ID:        highlight.ID,
 			BookID:    highlight.BookID,
@@ -116,6 +132,8 @@ func (s *Server) HandleListHighlights(c *fiber.Ctx) error {
 }
 
 func (s *Server) HandleListBooks(c *fiber.Ctx) error {
+	ctx := c.Context()
+
 	p, err := parseParams(c)
 	if err != nil {
 		return err
@@ -128,14 +146,19 @@ func (s *Server) HandleListBooks(c *fiber.Ctx) error {
 
 	var res ListBooksResponse
 
-	for _, book := range s.stor.ListBooks(p.updatedLT, p.updatedGT) {
+	bs, err := s.stor.ListBooks(ctx, p.updatedLT, p.updatedGT)
+	if err != nil {
+		return err
+	}
+
+	for _, book := range bs {
 		res.Results = append(res.Results, ListBook{
 			ID:            book.ID,
 			Title:         book.Title,
 			Author:        book.Author,
 			SourceURL:     book.SourceURL,
 			Category:      HighlightCategoryBooks,
-			NumHighlights: book.NumHighlights(),
+			NumHighlights: book.NumHighlights,
 			UpdatedAt:     book.Updated.Format(time.RFC3339),
 		})
 	}

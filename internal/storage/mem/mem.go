@@ -1,6 +1,7 @@
 package mem
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -33,7 +34,7 @@ func New(conf *config.Config) *Mem {
 	}
 }
 
-func (s *Mem) AddBook(title, author, source string) (storage.Book, bool) {
+func (s *Mem) AddBook(ctx context.Context, title, author, source string) (storage.Book, error) {
 	if title == "" {
 		title = storage.DefaultTitle
 	}
@@ -44,9 +45,9 @@ func (s *Mem) AddBook(title, author, source string) (storage.Book, bool) {
 	for _, book := range s.books {
 		if book.Title == title && book.Author == author && book.SourceURL == source {
 			book.Book.Updated = book.Updated
-			book.Book.Highlights = append([]*storage.Highlight{}, book.Highlights...)
+			book.NumHighlights = len(book.Highlights)
 
-			return book.Book, false
+			return book.Book, nil
 		}
 	}
 
@@ -63,10 +64,10 @@ func (s *Mem) AddBook(title, author, source string) (storage.Book, bool) {
 
 	s.books = append(s.books, book)
 
-	return book.Book, true
+	return book.Book, nil
 }
 
-func (s *Mem) ListBooks(lt, gt time.Time) []storage.Book {
+func (s *Mem) ListBooks(ctx context.Context, lt, gt time.Time) ([]storage.Book, error) {
 	if gt.IsZero() {
 		gt = time.Now()
 	}
@@ -79,31 +80,31 @@ func (s *Mem) ListBooks(lt, gt time.Time) []storage.Book {
 	for _, book := range s.books {
 		if book.Updated.Before(gt) && book.Updated.After(lt) {
 			book.Book.Updated = book.Updated
-			book.Book.Highlights = append([]*storage.Highlight{}, book.Highlights...)
+			book.NumHighlights = len(book.Highlights)
 
 			books = append(books, book.Book)
 		}
 	}
 
-	return books
+	return books, nil
 }
 
-func (s *Mem) AddHighlight(b storage.Book, text, note, chapter string, location int, url string) (storage.Highlight, bool) {
+func (s *Mem) AddHighlight(ctx context.Context, b storage.Book, text, note, chapter string, location int, url string) (storage.Highlight, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	for _, book := range s.books {
 		if book.ID == b.ID {
-			highlight, created := book.AddHighlight(text, note, chapter, location, url)
+			highlight, err := book.AddHighlight(text, note, chapter, location, url)
 
-			return *highlight, created
+			return *highlight, err
 		}
 	}
 
-	return storage.Highlight{}, false
+	return storage.Highlight{}, nil
 }
 
-func (s *Mem) ListHighlights(lt, gt time.Time) []storage.Highlight {
+func (s *Mem) ListHighlights(ctx context.Context, lt, gt time.Time) ([]storage.Highlight, error) {
 	if gt.IsZero() {
 		gt = time.Now()
 	}
@@ -123,10 +124,10 @@ func (s *Mem) ListHighlights(lt, gt time.Time) []storage.Highlight {
 		book.mutex.RUnlock()
 	}
 
-	return highlights
+	return highlights, nil
 }
 
-func (b *cachedBook) AddHighlight(text, note, chapter string, location int, url string) (*storage.Highlight, bool) {
+func (b *cachedBook) AddHighlight(text, note, chapter string, location int, url string) (*storage.Highlight, error) {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
@@ -141,7 +142,7 @@ func (b *cachedBook) AddHighlight(text, note, chapter string, location int, url 
 			h.URL = url
 			h.Updated = b.Updated
 
-			return h, false
+			return h, nil
 		}
 	}
 
@@ -158,5 +159,5 @@ func (b *cachedBook) AddHighlight(text, note, chapter string, location int, url 
 
 	b.Highlights = append(b.Highlights, highlight)
 
-	return highlight, true
+	return highlight, nil
 }
