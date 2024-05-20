@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.1.0](https://github.com/corani/unwise/tree/v0.1.0) (2024-05-20)
+
+[Full Changelog](https://github.com/corani/unwise/compare/v0.0.8...v0.1.0)
+
+**Merged pull requests:**
+
+- fix\(deps\): update module github.com/data-dog/go-sqlmock to v1.5.2 [\#30](https://github.com/corani/unwise/pull/30) ([renovate[bot]](https://github.com/apps/renovate))
+- feat: add sqlite storage implementation [\#29](https://github.com/corani/unwise/pull/29) ([corani](https://github.com/corani))
+- fix\(deps\): update module github.com/vektra/mockery/v2 to v2.43.1 [\#28](https://github.com/corani/unwise/pull/28) ([renovate[bot]](https://github.com/apps/renovate))
+
 ## [v0.0.8](https://github.com/corani/unwise/tree/v0.0.8) (2024-05-16)
 
 [Full Changelog](https://github.com/corani/unwise/compare/v0.0.7...v0.0.8)
