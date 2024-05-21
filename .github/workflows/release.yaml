@@ -51,7 +51,7 @@ jobs:
 
       - uses: FranzDiebold/github-env-vars-action@v2
 
-      - uses: mindsers/changelog-reader-action@v1
+      - uses: mindsers/changelog-reader-action@v2
         id: changelog_reader
         with:
           version: ${{ env.CI_REF_NAME }}
