@@ -11,6 +11,9 @@ var (
 
 	//go:embed HASH
 	hash string
+
+	//go:embed HASH
+	build string
 )
 
 // Version returns the embedded application version.
@@ -27,4 +30,9 @@ func Version() string {
 // Hash returns the embedded application hash.
 func Hash() string {
 	return strings.TrimSpace(hash)
+}
+
+// Build returns the embedded application hash.
+func Build() string {
+	return strings.TrimSpace(build)
 }
