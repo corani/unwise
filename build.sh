@@ -52,13 +52,35 @@ function update_hash {
 }
 
 function go_build {
-    log_info "Building unwise version $(cat cfg/VERSION)/$(cat cfg/HASH)"
+    if [ -z "${BUILD_DEBUG:-}" ]; then 
+        build="release"
+        opts=(-trimpath -ldflags '-s -w')
+    else
+        build="debug"
+        opts=(-gcflags 'all=-N -l')
+    fi
 
-    do_echo go build -o bin/unwise ./cmd/unwise/
+    log_info "Building unwise version $(cat cfg/VERSION)/$(cat cfg/HASH) (${build} build)"
+
+    do_echo go build "${opts[@]}"   \
+        -o bin/unwise               \
+        ./cmd/unwise/
 }
 
 function go_test {
-    do_echo go test -race -coverprofile=coverage.txt -covermode=atomic ./... 
+    if [ "$(go env GOOS)" == "android" ]; then
+        # NOTE(daniel): `-race` is not supported on Android. This check is probably not
+        # exhaustive, but it's good enough for now.
+        log_warning "skipping race detection on Android"
+        opts=()
+    else 
+        opts=(-race)
+    fi
+
+    do_echo go test "${opts[@]}"    \
+        -coverprofile=coverage.txt  \
+        -covermode=atomic           \
+        ./... 
 }
 
 function go_generate {
@@ -72,16 +94,22 @@ function go_generate {
 function docker_build {
     VERSION=${VERSION:-dev}
 
-    do_echo docker build                    \
-        --build-arg VERSION="${VERSION}"    \
-        -t unwise:"${VERSION}"              \
-        -f docker/Dockerfile                \
+    do_echo docker build                            \
+        --build-arg VERSION="${VERSION}"            \
+        --build-arg BUILD_DEBUG="${BUILD_DEBUG}"    \
+        -t unwise:"${VERSION}"                      \
+        -f docker/Dockerfile                        \
         .
 }
 
 mkdir -p bin data
 
 update_hash
+
+if [ "$#" -eq "0" ]; then 
+    print_usage
+    exit 1
+fi
 
 while [ "$#" -gt "0" ]; do
   arg=$1
