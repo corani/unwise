@@ -21,6 +21,7 @@ type Config struct {
 	DropTable string `env:"DROP_TABLE" envDefault:"false"`
 	Version   string
 	Hash      string
+	Build     string
 	Logger    *log.Logger
 }
 
@@ -57,6 +58,7 @@ func Load() (*Config, error) {
 	conf.Logger = logger
 	conf.Version = cfg.Version()
 	conf.Hash = cfg.Hash()
+	conf.Build = cfg.Build()
 
 	if conf.Token == "" {
 		conf.Token = uuid.NewString()
@@ -78,6 +80,7 @@ func (c *Config) PrintBanner() {
 	c.Logger.Info("configuration",
 		"version", c.Version,
 		"hash", c.Hash,
+		"build", c.Build,
 		"logLevel", c.LogLevel,
 		"restAddr", c.RestAddr,
 		"restPath", c.RestPath,

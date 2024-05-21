@@ -5,3 +5,4 @@ data/
 bin/
 cfg/VERSION
 cfg/HASH
+cfg/BUILD

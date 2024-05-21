@@ -61,6 +61,7 @@ function go_build {
     fi
 
     log_info "Building unwise version $(cat cfg/VERSION)/$(cat cfg/HASH) (${build} build)"
+    echo "${build}" > cfg/BUILD
 
     do_echo go build "${opts[@]}"   \
         -o bin/unwise               \
