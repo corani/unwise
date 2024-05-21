@@ -5,8 +5,13 @@ WORKDIR /src
 COPY . . 
 
 ARG CGO_ENABLED=0
+ENV CGO_ENABLED ${CGO_ENABLED}
+
 ARG VERSION="snapshot"
 ENV VERSION ${VERSION}
+
+ARG BUILD_DEBUG
+ENV BUILD_DEBUG ${BUILD_DEBUG}
 
 RUN mkdir -p /build/usr/bin                                         \
  && ./build.sh -b                                                   \
