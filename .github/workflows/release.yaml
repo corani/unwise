@@ -57,7 +57,7 @@ jobs:
           version: ${{ env.CI_REF_NAME }}
           path: CHANGELOG.md
 
-      - uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.CI_REF_NAME }}
           name: ${{ env.CI_REF_NAME }}
