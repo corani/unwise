@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.1.1](https://github.com/corani/unwise/tree/v0.1.1) (2024-05-21)
+
+[Full Changelog](https://github.com/corani/unwise/compare/v0.1.0...v0.1.1)
+
+**Merged pull requests:**
+
+- feat: add release build, disable race on android [\#34](https://github.com/corani/unwise/pull/34) ([corani](https://github.com/corani))
+- chore\(deps\): update stefanzweifel/git-auto-commit-action action to v5 [\#33](https://github.com/corani/unwise/pull/33) ([renovate[bot]](https://github.com/apps/renovate))
+- chore\(deps\): update softprops/action-gh-release action to v2 [\#32](https://github.com/corani/unwise/pull/32) ([renovate[bot]](https://github.com/apps/renovate))
+- chore\(deps\): update mindsers/changelog-reader-action action to v2 [\#31](https://github.com/corani/unwise/pull/31) ([renovate[bot]](https://github.com/apps/renovate))
+
 ## [v0.1.0](https://github.com/corani/unwise/tree/v0.1.0) (2024-05-20)
 
 [Full Changelog](https://github.com/corani/unwise/compare/v0.0.8...v0.1.0)
