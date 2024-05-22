@@ -56,6 +56,12 @@ func main() {
 		fmt.Printf("%+v\n", err)
 	}
 
+  // or you can use generics
+  cfg, err := env.ParseAs[config]()
+  if err != nil {
+		fmt.Printf("%+v\n", err)
+  }
+
 	fmt.Printf("%+v\n", cfg)
 }
 ```
@@ -299,7 +305,8 @@ $ SECRET=/tmp/secret  \
 If you don't want to set the `env` tag on every field, you can use the
 `UseFieldNameByDefault` option.
 
-It will use the field name as environment variable name.
+It will use the field name to define the environment variable name.
+So, `Foo` becomes `FOO`, `FooBar` becomes `FOO_BAR`, and so on.
 
 Here's an example:
 

@@ -118,6 +118,8 @@ type Options struct {
 
 	// UseFieldNameByDefault defines whether or not env should use the field
 	// name by default if the `env` key is missing.
+	// Note that the field name will be "converted" to conform with environment
+	// variable names conventions.
 	UseFieldNameByDefault bool
 
 	// Custom parse functions for different types.
@@ -296,6 +298,15 @@ func doParseField(refField reflect.Value, refTypeField reflect.StructField, proc
 
 	if err := processField(refField, refTypeField, opts, params); err != nil {
 		return err
+	}
+
+	if isStructPtr(refField) && refField.IsNil() {
+		refField.Set(reflect.New(refField.Type().Elem()))
+		refField = refField.Elem()
+	}
+
+	if _, ok := opts.FuncMap[refField.Type()]; ok {
+		return nil
 	}
 
 	if reflect.Struct == refField.Kind() {
@@ -641,4 +652,8 @@ func parseTextUnmarshalers(field reflect.Value, data []string, sf reflect.Struct
 // can use as Options.Environment field
 func ToMap(env []string) map[string]string {
 	return toMap(env)
+}
+
+func isStructPtr(v reflect.Value) bool {
+	return reflect.Ptr == v.Kind() && v.Type().Elem().Kind() == reflect.Struct
 }
