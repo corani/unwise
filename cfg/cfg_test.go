@@ -61,3 +61,29 @@ func TestHash(t *testing.T) {
 		})
 	}
 }
+
+func TestBuild(t *testing.T) {
+	defer func(old string) {
+		build = old
+	}(build)
+
+	tt := []struct {
+		set string
+		exp string
+	}{
+		{
+			set: " trim me ",
+			exp: "trim me",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.exp, func(t *testing.T) {
+			build = tc.set
+
+			if act := Build(); act != tc.exp {
+				t.Errorf("unexpected build: exp=%q, act=%q", tc.exp, act)
+			}
+		})
+	}
+}
