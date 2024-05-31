@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased](https://github.com/corani/unwise/tree/HEAD)
+
+[Full Changelog](https://github.com/corani/unwise/compare/v0.1.3...HEAD)
+
+**Closed issues:**
+
+- sql: Scan error on column index 0, name "id": converting NULL to int is unsupported [\#39](https://github.com/corani/unwise/issues/39)
+
+## [v0.1.3](https://github.com/corani/unwise/tree/v0.1.3) (2024-05-31)
+
+[Full Changelog](https://github.com/corani/unwise/compare/v0.1.2...v0.1.3)
+
+**Merged pull requests:**
+
+- fix: time filters in list books / highlights [\#40](https://github.com/corani/unwise/pull/40) ([corani](https://github.com/corani))
+- fix\(deps\): update module github.com/vektra/mockery/v2 to v2.43.2 [\#38](https://github.com/corani/unwise/pull/38) ([renovate[bot]](https://github.com/apps/renovate))
+- chore: add test coverage for cfg package [\#37](https://github.com/corani/unwise/pull/37) ([corani](https://github.com/corani))
+- fix\(deps\): update module github.com/caarlos0/env/v11 to v11.0.1 [\#36](https://github.com/corani/unwise/pull/36) ([renovate[bot]](https://github.com/apps/renovate))
+
 ## [v0.1.2](https://github.com/corani/unwise/tree/v0.1.2) (2024-05-21)
 
 [Full Changelog](https://github.com/corani/unwise/compare/v0.1.1...v0.1.2)
