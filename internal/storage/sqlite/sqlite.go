@@ -116,8 +116,8 @@ func (s *DB) AddBook(ctx context.Context, title, author, source string) (storage
 }
 
 func (s *DB) ListBooks(ctx context.Context, lt, gt time.Time) ([]storage.Book, error) {
-	if gt.IsZero() {
-		gt = time.Now()
+	if lt.IsZero() {
+		lt = time.Now()
 	}
 
 	var books []storage.Book
@@ -126,7 +126,7 @@ func (s *DB) ListBooks(ctx context.Context, lt, gt time.Time) ([]storage.Book, e
 		SELECT b.id, b.title, b.author, b.source_url, b.updated, COUNT(h.id) AS num_highlights
 		FROM   books AS b LEFT OUTER JOIN highlights AS h ON b.id = h.book_id
 		WHERE  b.updated >= ? AND b.updated <= ? 
-	`, lt.Format(time.RFC3339), gt.Format(time.RFC3339))
+	`, gt.Format(time.RFC3339), lt.Format(time.RFC3339))
 	if err != nil {
 		return nil, err
 	}
@@ -192,8 +192,8 @@ func (s *DB) AddHighlight(ctx context.Context, b storage.Book, text, note, chapt
 }
 
 func (s *DB) ListHighlights(ctx context.Context, lt, gt time.Time) ([]storage.Highlight, error) {
-	if gt.IsZero() {
-		gt = time.Now()
+	if lt.IsZero() {
+		lt = time.Now()
 	}
 
 	var highlights []storage.Highlight
@@ -202,7 +202,7 @@ func (s *DB) ListHighlights(ctx context.Context, lt, gt time.Time) ([]storage.Hi
 		SELECT id, book_id, text, note, chapter, location, url, updated 
 		FROM   highlights 
 		WHERE  updated >= ? AND updated <= ? 
-	`, lt.Format(time.RFC3339), gt.Format(time.RFC3339))
+	`, gt.Format(time.RFC3339), lt.Format(time.RFC3339))
 	if err != nil {
 		return nil, err
 	}
