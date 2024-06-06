@@ -125,7 +125,8 @@ func (s *DB) ListBooks(ctx context.Context, lt, gt time.Time) ([]storage.Book, e
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT b.id, b.title, b.author, b.source_url, b.updated, COUNT(h.id) AS num_highlights
 		FROM   books AS b LEFT OUTER JOIN highlights AS h ON b.id = h.book_id
-		WHERE  b.updated >= ? AND b.updated <= ? 
+		WHERE  b.updated >= ? AND b.updated <= ?
+		GROUP BY b.id
 	`, gt.Format(time.RFC3339), lt.Format(time.RFC3339))
 	if err != nil {
 		return nil, err
