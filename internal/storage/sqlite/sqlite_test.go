@@ -343,7 +343,8 @@ func TestSqlite_ListBooks(t *testing.T) {
 			exec := mock.ExpectQuery(`
 				SELECT b.id, b.title, b.author, b.source_url, b.updated, COUNT(h.id) AS num_highlights
 				FROM   books AS b LEFT OUTER JOIN highlights AS h ON b.id = h.book_id
-				WHERE  b.updated >= ? AND b.updated <= ? 
+				WHERE  b.updated >= ? AND b.updated <= ?
+				GROUP BY b.id
 			`).WithArgs(tc.lt.Format(time.RFC3339), tc.gt.Format(time.RFC3339))
 
 			if tc.err != nil {
