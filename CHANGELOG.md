@@ -1,12 +1,18 @@
 # Changelog
 
-## [Unreleased](https://github.com/corani/unwise/tree/HEAD)
+## [v0.1.4](https://github.com/corani/unwise/tree/v0.1.4) (2024-06-06)
 
-[Full Changelog](https://github.com/corani/unwise/compare/v0.1.3...HEAD)
+[Full Changelog](https://github.com/corani/unwise/compare/v0.1.3...v0.1.4)
 
 **Closed issues:**
 
 - sql: Scan error on column index 0, name "id": converting NULL to int is unsupported [\#39](https://github.com/corani/unwise/issues/39)
+
+**Merged pull requests:**
+
+- fix list books sql join [\#43](https://github.com/corani/unwise/pull/43) ([corani](https://github.com/corani))
+- chore\(deps\): update golang docker tag to v1.22.4 [\#42](https://github.com/corani/unwise/pull/42) ([renovate[bot]](https://github.com/apps/renovate))
+- fix\(deps\): update module modernc.org/sqlite to v1.30.0 [\#41](https://github.com/corani/unwise/pull/41) ([renovate[bot]](https://github.com/apps/renovate))
 
 ## [v0.1.3](https://github.com/corani/unwise/tree/v0.1.3) (2024-05-31)
 
