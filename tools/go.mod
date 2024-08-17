@@ -4,7 +4,7 @@ go 1.22.2
 
 require (
 	github.com/vektra/mockery/v2 v2.44.2
-	mvdan.cc/gofumpt v0.6.0
+	mvdan.cc/gofumpt v0.7.0
 )
 
 require (
