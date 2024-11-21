@@ -3,7 +3,7 @@ module github.com/corani/unwise/tools
 go 1.22.2
 
 require (
-	github.com/vektra/mockery/v2 v2.47.0
+	github.com/vektra/mockery/v2 v2.49.0
 	mvdan.cc/gofumpt v0.7.0
 )
 
