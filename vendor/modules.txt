@@ -155,8 +155,8 @@ modernc.org/mathutil
 # modernc.org/memory v1.8.0
 ## explicit; go 1.18
 modernc.org/memory
-# modernc.org/sqlite v1.34.1
-## explicit; go 1.20
+# modernc.org/sqlite v1.34.2
+## explicit; go 1.21
 modernc.org/sqlite
 modernc.org/sqlite/lib
 # modernc.org/strutil v1.2.0
