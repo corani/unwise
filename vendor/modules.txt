@@ -11,12 +11,16 @@ github.com/aymanbagabas/go-osc52/v2
 # github.com/caarlos0/env/v11 v11.3.1
 ## explicit; go 1.18
 github.com/caarlos0/env/v11
-# github.com/charmbracelet/lipgloss v0.10.0
+# github.com/charmbracelet/lipgloss v1.0.0
 ## explicit; go 1.18
 github.com/charmbracelet/lipgloss
-# github.com/charmbracelet/log v0.4.0
+# github.com/charmbracelet/log v0.4.1
 ## explicit; go 1.19
 github.com/charmbracelet/log
+# github.com/charmbracelet/x/ansi v0.4.2
+## explicit; go 1.18
+github.com/charmbracelet/x/ansi
+github.com/charmbracelet/x/ansi/parser
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
@@ -58,13 +62,7 @@ github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.16
 ## explicit; go 1.9
 github.com/mattn/go-runewidth
-# github.com/muesli/reflow v0.3.0
-## explicit; go 1.13
-github.com/muesli/reflow/ansi
-github.com/muesli/reflow/truncate
-github.com/muesli/reflow/wordwrap
-github.com/muesli/reflow/wrap
-# github.com/muesli/termenv v0.15.2
+# github.com/muesli/termenv v0.16.0
 ## explicit; go 1.17
 github.com/muesli/termenv
 # github.com/ncruces/go-strftime v0.1.9
