@@ -1,4 +1,4 @@
-package main
+package web
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 func TestMain_newApp(t *testing.T) {
 	rq := require.New(t)
 
-	server := newServer(config.MustLoad(), nil)
+	server := New(config.MustLoad(), nil)
 	app := newApp(server)
 
 	rq.NotNil(app)

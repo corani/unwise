@@ -1,4 +1,4 @@
-package main
+package web
 
 import (
 	"io"
@@ -42,7 +42,7 @@ func TestServer_CheckAuth(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			rq := require.New(t)
 
-			s := newServer(config.MustLoad(), nil)
+			s := New(config.MustLoad(), nil)
 			s.conf.Token = tc.token
 
 			act, err := s.CheckAuth(nil, tc.key)
@@ -54,7 +54,7 @@ func TestServer_CheckAuth(t *testing.T) {
 
 func TestServer_HandleRoot(t *testing.T) {
 	rq := require.New(t)
-	s := newServer(config.MustLoad(), nil)
+	s := New(config.MustLoad(), nil)
 
 	app := fiber.New()
 	app.Get("/", s.HandleRoot)
@@ -66,7 +66,7 @@ func TestServer_HandleRoot(t *testing.T) {
 
 func TestServer_HandleAuth(t *testing.T) {
 	rq := require.New(t)
-	s := newServer(config.MustLoad(), nil)
+	s := New(config.MustLoad(), nil)
 
 	app := fiber.New()
 	app.Get("/auth", s.HandleAuth)
@@ -107,7 +107,7 @@ func TestServer_HandleError(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			rq := require.New(t)
-			s := newServer(config.MustLoad(), nil)
+			s := New(config.MustLoad(), nil)
 
 			app := fiber.New(fiber.Config{
 				ErrorHandler: s.HandleError,
@@ -200,7 +200,7 @@ func TestServer_HandleCreateHighlights(t *testing.T) {
 			}
 
 			conf := config.MustLoad()
-			serv := newServer(conf, stor)
+			serv := New(conf, stor)
 
 			app := fiber.New(fiber.Config{
 				ErrorHandler: serv.HandleError,
@@ -294,7 +294,7 @@ func TestServer_HandleListHighlights(t *testing.T) {
 			}
 
 			conf := config.MustLoad()
-			serv := newServer(conf, stor)
+			serv := New(conf, stor)
 
 			app := fiber.New(fiber.Config{
 				ErrorHandler: serv.HandleError,
@@ -383,7 +383,7 @@ func TestServer_HandleListBooks(t *testing.T) {
 			}
 
 			conf := config.MustLoad()
-			serv := newServer(conf, stor)
+			serv := New(conf, stor)
 
 			app := fiber.New(fiber.Config{
 				ErrorHandler: serv.HandleError,

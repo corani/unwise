@@ -1,4 +1,4 @@
-package main
+package web
 
 import (
 	"errors"
@@ -7,22 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/corani/unwise/internal/config"
-	"github.com/corani/unwise/internal/storage"
 	"github.com/gofiber/fiber/v2"
 )
-
-type Server struct {
-	conf *config.Config
-	stor storage.Storage
-}
-
-func newServer(conf *config.Config, stor storage.Storage) *Server {
-	return &Server{
-		conf: conf,
-		stor: stor,
-	}
-}
 
 func (s *Server) HandleRoot(c *fiber.Ctx) error {
 	// NOTE(daniel): unauthenticated endpoint.
