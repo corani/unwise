@@ -30,8 +30,8 @@ func getStringFile(name string) string {
 func Version() string {
 	v := getStringFile("VERSION")
 
-	if strings.HasSuffix(v, "/merge") {
-		v = "pr-" + strings.TrimSuffix(v, "/merge")
+	if before, ok := strings.CutSuffix(v, "/merge"); ok {
+		v = "pr-" + before
 	}
 
 	return v

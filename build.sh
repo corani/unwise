@@ -21,18 +21,6 @@ function go_install_tools {
     do_echo tools/install.sh
 }
 
-function require_tool {
-    export PATH=/go/bin:"${root}/tools/bin":${PATH}
-
-    command -v "${1}" > /dev/null
-    if [ $? -eq 1 ]; then
-        log_info "${1} not found, installing"
-        go_install_tools
-    fi
-
-    log_notice "using $(command -v "$1") version $(go version -m "$(command -v "$1")" | awk '$1 == "mod" { print $3 }')"
-}
-
 function update_hash {
     VERSION=${VERSION:-dev}
 
@@ -85,10 +73,8 @@ function go_test {
 }
 
 function go_generate {
-    require_tool mockery 
-    require_tool gofumpt 
-
-    do_echo mockery
+    do_echo go generate ./...
+    do_echo go tool modernize --fix ./...
     do_echo ./scripts/gofmt.sh
 }
 
