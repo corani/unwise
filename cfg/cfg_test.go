@@ -1,37 +1,71 @@
 package cfg
 
 import (
+	"io/fs"
 	"testing"
+	"testing/fstest"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestVersion(t *testing.T) {
-	defer func(old string) {
-		version = old
-	}(version)
+func setFS(t *testing.T, files map[string]string) {
+	t.Helper()
 
+	mapfs := make(fstest.MapFS, len(files))
+	for name, content := range files {
+		mapfs[name] = &fstest.MapFile{Data: []byte(content)}
+	}
+
+	oldFS := getFS
+	getFS = func() fs.FS {
+		return mapfs
+	}
+
+	t.Cleanup(func() {
+		getFS = oldFS
+	})
+}
+
+func TestVersion(t *testing.T) {
 	tt := []struct {
-		set string
-		exp string
+		name  string
+		files map[string]string
+		exp   string
 	}{
 		{
-			set: " trim me ",
-			exp: "trim me",
+			name:  "simple",
+			files: map[string]string{"VERSION": "v1.2.3"},
+			exp:   "v1.2.3",
 		},
 		{
-			set: "v0.0.3",
-			exp: "v0.0.3",
+			name:  "with trim",
+			files: map[string]string{"VERSION": "  v1.2.4  "},
+			exp:   "v1.2.4",
 		},
 		{
-			set: "16/merge",
-			exp: "pr-16",
+			name:  "pr",
+			files: map[string]string{"VERSION": "123/merge"},
+			exp:   "pr-123",
+		},
+		{
+			name:  "pr with trim",
+			files: map[string]string{"VERSION": " 124/merge "},
+			exp:   "pr-124",
+		},
+		{
+			name:  "empty",
+			files: map[string]string{"VERSION": ""},
+			exp:   "",
+		},
+		{
+			name: "no file",
+			exp:  "",
 		},
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.exp, func(t *testing.T) {
-			version = tc.set
+		t.Run(tc.name, func(t *testing.T) {
+			setFS(t, tc.files)
 
 			require.Equal(t, tc.exp, Version())
 		})
@@ -39,51 +73,53 @@ func TestVersion(t *testing.T) {
 }
 
 func TestHash(t *testing.T) {
-	defer func(old string) {
-		hash = old
-	}(hash)
-
 	tt := []struct {
-		set string
-		exp string
+		name  string
+		files map[string]string
+		exp   string
 	}{
 		{
-			set: " trim me ",
-			exp: "trim me",
+			name:  "simple",
+			files: map[string]string{"HASH": "some-hash"},
+			exp:   "some-hash",
+		},
+		{
+			name:  "with trim",
+			files: map[string]string{"HASH": "  some-other-hash  "},
+			exp:   "some-other-hash",
 		},
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.exp, func(t *testing.T) {
-			hash = tc.set
-
+		t.Run(tc.name, func(t *testing.T) {
+			setFS(t, tc.files)
 			require.Equal(t, tc.exp, Hash())
 		})
 	}
 }
 
 func TestBuild(t *testing.T) {
-	defer func(old string) {
-		build = old
-	}(build)
-
 	tt := []struct {
-		set string
-		exp string
+		name  string
+		files map[string]string
+		exp   string
 	}{
 		{
-			set: " trim me ",
-			exp: "trim me",
+			name:  "simple",
+			files: map[string]string{"BUILD": "some-build-date"},
+			exp:   "some-build-date",
+		},
+		{
+			name:  "with trim",
+			files: map[string]string{"BUILD": "  some-other-build-date  "},
+			exp:   "some-other-build-date",
 		},
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.exp, func(t *testing.T) {
-			build = tc.set
-
-			if act := Build(); act != tc.exp {
-				t.Errorf("unexpected build: exp=%q, act=%q", tc.exp, act)
-			}
+		t.Run(tc.name, func(t *testing.T) {
+			setFS(t, tc.files)
+			require.Equal(t, tc.exp, Build())
 		})
 	}
 }
