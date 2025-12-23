@@ -8,18 +8,18 @@ used for this purpose, that is supported by both Moon+ Reader and Obsidian, howe
 keep my data private. So this is a partial reimplementation of the Readwise API in Go, supporting
 just the endpoints I need.
 
-1. Only a few of the endpoints are implemented. 
-2. Only a few of the fields are supported. 
+1. Only a few of the endpoints are implemented.
+2. Only a few of the fields are supported.
 3. Only category "book" is supported.
 
-## Moon+ Reader 
+## Moon+ Reader
 
 Open any book and go to "Bookmarks". Click on the settings icon at the bottom and enable "Share new
 highlights and notes to Readwise automatically". In the settings, enter the Token and server URL.
 
-## Obsidian 
+## Obsidian
 
-I'm using my own fork of the the [Obsidian Readwise (Community Plugin)](https://github.com/renehernandez/obsidian-readwise) 
+I'm using my own fork of the the [Obsidian Readwise (Community Plugin)](https://github.com/renehernandez/obsidian-readwise)
 to import my highlights into Obsidian: [corani/obsidian-readwise](https://github.com/corani/obsidian-readwise). This allows
 to set the API server location in the settings and supports the "chapter" property for highlights.
 
@@ -58,10 +58,10 @@ $ ./bin/unwise
  └───────────────────────────────────────────────────┘
 ```
 
-### Configuration 
+### Configuration
 
 The following environment variables can be used to configure the server (you can also add them to
-a `.env` file): 
+a `.env` file):
 
 | Variable    | Description                   | Default     |
 | ----------- | ----------------------------- | ----------- |
@@ -74,9 +74,9 @@ a `.env` file):
 Note: if you don't provide a `TOKEN`, the application will generate one and print it to the
 console during startup.
 
-## Docker 
+## Docker
 
-```sh 
+```sh
 $ docker run --rm -it -p 3123:3123  \
     -e TOKEN=my-token               \
     ghcr.io/corani/unwise:latest
@@ -86,11 +86,12 @@ Or using docker compose:
 
 ```sh
 $ docker-compose -f docker/docker-compose.yml up
+...
 ```
 
 ## Traefik
 
-I'm running the app behind Traefik, so I can use Let's Encrypt for SSL. Here is an example: 
+I'm running the app behind Traefik, so I can use Let's Encrypt for SSL. Here is an example:
 
 ```yaml
 services:
@@ -127,8 +128,6 @@ services:
       - "traefik.http.middlewares.unwisecors.headers.accessControlAllowCredentials=true"
 ```
 
-## TODO
+## Persistence
 
-Currently data is only kept in memory, this needs to be persisted so we don't loose anything when
-the app is restarted. Note: as there are no "delete" APIs we probably need some mechanism to remove
-data after some retention period.
+The application uses a local SQLite database (`/data/unwise.db`) to persist the data.

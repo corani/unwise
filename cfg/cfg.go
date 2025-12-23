@@ -1,27 +1,37 @@
 package cfg
 
 import (
-	_ "embed" // needed for `go:embed`
+	"embed"
+	"io/fs"
 	"strings"
 )
 
-var (
-	//go:embed VERSION
-	version string
+//go:embed *
+var files embed.FS
 
-	//go:embed HASH
-	hash string
+// getFS returns the filesystem to read configuration files from. This is needed to adapt the
+// type to an `fs.FS` so we can inject a mock during testing.
+//
+//nolint:gochecknoglobals
+var getFS = func() fs.FS {
+	return files
+}
 
-	//go:embed BUILD
-	build string
-)
+func getStringFile(name string) string {
+	bs, err := fs.ReadFile(getFS(), name)
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(bs))
+}
 
 // Version returns the embedded application version.
 func Version() string {
-	v := strings.TrimSpace(version)
+	v := getStringFile("VERSION")
 
-	if strings.HasSuffix(v, "/merge") {
-		v = "pr-" + strings.TrimSuffix(v, "/merge")
+	if before, ok := strings.CutSuffix(v, "/merge"); ok {
+		v = "pr-" + before
 	}
 
 	return v
@@ -29,10 +39,10 @@ func Version() string {
 
 // Hash returns the embedded application hash.
 func Hash() string {
-	return strings.TrimSpace(hash)
+	return getStringFile("HASH")
 }
 
 // Build returns the embedded application hash.
 func Build() string {
-	return strings.TrimSpace(build)
+	return getStringFile("BUILD")
 }

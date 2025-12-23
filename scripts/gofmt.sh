@@ -40,15 +40,15 @@ function should_skip {
     return 1
 }
 
-log_info "using $(command -v gofumpt) version: $(gofumpt --version)"
+log_info "using $(command -v gofumpt) version: $(go tool gofumpt --version)"
 
 git ls-files | while read -r file; do
     if should_skip "${file}"; then
         continue
     fi
 
-    log_cmd "gofumpt -l -w ${file}"
-    output=$(gofumpt -l -w "${file}")
+    log_cmd "go tool gofumpt -l -w ${file}"
+    output=$(go tool gofumpt -l -w "${file}")
     if [[ "${output}" != "" ]]; then
         log_info "fixed: ${output}"
     fi

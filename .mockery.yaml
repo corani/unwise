@@ -1,12 +1,13 @@
 ---
-with-expecter: true
-inpackage: false
-mockname: "{{.InterfaceName}}"
-outpkg: "mocks"
+dir: fakes/{{ trimPrefix "internal/" .InterfaceDirRelative }}
+structname: "{{.InterfaceName}}"
 filename: "{{.InterfaceName | snakecase}}.go"
-dir: fakes/{{ trimPrefix .InterfaceDirRelative "internal/" }}
-all: false
+force-file-write: true
+pkgname: "mocks"
+template: testify
+template-data:
+  unroll-variadic: true
 packages: 
   github.com/corani/unwise/internal/storage:
     interfaces: 
-      Storage:
+      Storage: {}

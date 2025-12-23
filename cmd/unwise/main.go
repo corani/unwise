@@ -5,6 +5,7 @@ import (
 
 	"github.com/corani/unwise/internal/config"
 	"github.com/corani/unwise/internal/storage/sqlite"
+	"github.com/corani/unwise/internal/web"
 )
 
 func main() {
@@ -15,8 +16,8 @@ func main() {
 		conf.Logger.Errorf("sqlite: %v", err)
 	}
 
-	serv := newServer(conf, stor)
-	app := newApp(serv)
+	serv := web.New(conf, stor)
+	app := serv.App()
 
 	conf.PrintBanner()
 
