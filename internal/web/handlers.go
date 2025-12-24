@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/corani/unwise/static"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -168,7 +169,13 @@ func (s *Server) CheckAuth(user, pass string) bool {
 }
 
 func (s *Server) HandleUIIndex(c *fiber.Ctx) error {
-	return c.SendFile("static/index.html")
+	data, err := static.FS.ReadFile("index.html")
+	if err != nil {
+		return err
+	}
+
+	c.Set("Content-Type", "text/html")
+	return c.Send(data)
 }
 
 func (s *Server) HandleUIListBooks(c *fiber.Ctx) error {

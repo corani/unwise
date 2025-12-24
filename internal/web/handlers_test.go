@@ -475,10 +475,28 @@ func TestServer_HandleListBooks(t *testing.T) {
 }
 
 func TestServer_HandleUIIndex(t *testing.T) {
-	t.Skip("Skipping UI index test - requires embedded static files")
-	// This test would require the embedded static files to be present,
-	// which aren't available in the test environment.
-	// The functionality is tested in integration tests.
+	rq := require.New(t)
+
+	conf := config.MustLoad()
+	serv := New(conf, nil)
+
+	app := fiber.New(fiber.Config{
+		ErrorHandler: serv.HandleError,
+	})
+	app.Get("/ui/", serv.HandleUIIndex)
+
+	req := httptest.NewRequest(http.MethodGet, "/ui/", nil)
+	resp, err := app.Test(req)
+	rq.NoError(err)
+
+	// Should return the index.html file
+	rq.Equal(http.StatusOK, resp.StatusCode)
+	rq.Equal("text/html", resp.Header.Get("Content-Type"))
+
+	body, err := io.ReadAll(resp.Body)
+	rq.NoError(err)
+	rq.Contains(string(body), "<!DOCTYPE html>")
+	rq.Contains(string(body), "Unwise - Book Highlights")
 }
 
 func TestServer_HandleUIListBooks(t *testing.T) {

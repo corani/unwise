@@ -1,8 +1,12 @@
 package web
 
 import (
+	"net/http"
+
+	"github.com/corani/unwise/static"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/keyauth"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -28,10 +32,15 @@ func newApp(server *Server) *fiber.App {
 		Users:      map[string]string{},
 		Authorizer: server.CheckAuth,
 	}))
+	ui.Use("/static", filesystem.New(filesystem.Config{
+		Root:       http.FS(static.FS),
+		PathPrefix: "",
+		Browse:     false,
+	}))
+
 	ui.Get("/", server.HandleUIIndex)
 	ui.Get("/api/books", server.HandleUIListBooks)
 	ui.Get("/api/books/:id/highlights", server.HandleUIListHighlights)
-	ui.Static("/static", "./static")
 
 	// API
 	// default RestPath="/api/v2"
