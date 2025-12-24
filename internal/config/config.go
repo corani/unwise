@@ -18,6 +18,7 @@ type Config struct {
 	RestPath  string `env:"REST_PATH" envDefault:"/api/v2"`
 	DataPath  string `env:"DATA_PATH" envDefault:"/tmp"`
 	Token     string `env:"TOKEN"`
+	User      string `env:"UI_USER" envDefault:"admin"`
 	DropTable string `env:"DROP_TABLE" envDefault:"false"`
 	Version   string
 	Hash      string

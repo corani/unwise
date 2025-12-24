@@ -21,6 +21,9 @@ type Storage interface {
 
 	// ListHighlights returns a list of highlights from the storage.
 	ListHighlights(ctx context.Context, lt, gt time.Time) ([]Highlight, error)
+
+	// ListHighlightsByBook returns a list of highlights for a specific book from the storage.
+	ListHighlightsByBook(ctx context.Context, bookID int) ([]Highlight, error)
 }
 
 type Book struct {

@@ -229,3 +229,38 @@ func (s *DB) ListHighlights(ctx context.Context, lt, gt time.Time) ([]storage.Hi
 
 	return highlights, nil
 }
+
+func (s *DB) ListHighlightsByBook(ctx context.Context, bookID int) ([]storage.Highlight, error) {
+	var highlights []storage.Highlight
+
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, book_id, text, note, chapter, location, url, updated 
+		FROM   highlights 
+		WHERE  book_id = ?
+		ORDER BY location
+	`, bookID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			highlight storage.Highlight
+			updated   string
+		)
+
+		if err := rows.Scan(&highlight.ID, &highlight.BookID, &highlight.Text, &highlight.Note, &highlight.Chapter, &highlight.Location, &highlight.URL, &updated); err != nil {
+			return nil, err
+		}
+
+		highlight.Updated, err = time.Parse(time.RFC3339, updated)
+		if err != nil {
+			return nil, err
+		}
+
+		highlights = append(highlights, highlight)
+	}
+
+	return highlights, nil
+}

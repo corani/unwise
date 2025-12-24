@@ -59,6 +59,7 @@ github.com/go-viper/mapstructure/v2/internal/errors
 github.com/gofiber/fiber/v2
 github.com/gofiber/fiber/v2/internal/schema
 github.com/gofiber/fiber/v2/log
+github.com/gofiber/fiber/v2/middleware/basicauth
 github.com/gofiber/fiber/v2/middleware/helmet
 github.com/gofiber/fiber/v2/middleware/keyauth
 github.com/gofiber/fiber/v2/middleware/logger

@@ -506,6 +506,131 @@ func TestSqlite_AddHighlight(t *testing.T) {
 	}
 }
 
+func TestSqlite_ListHighlightsByBook(t *testing.T) {
+	now := time.Now()
+
+	tt := []struct {
+		name          string
+		bookID        int
+		err           error
+		rows          *sqlmock.Rows
+		expErr        bool
+		expHighlights []storage.Highlight
+	}{
+		{
+			name:   "success",
+			bookID: 1,
+			err:    nil,
+			rows: sqlmock.NewRows([]string{"id", "book_id", "text", "note", "chapter", "location", "url", "updated"}).
+				AddRow(1, 1, "text1", "note1", "chapter1", 10, "url1", now).
+				AddRow(2, 1, "text2", "note2", "chapter2", 20, "url2", now),
+			expErr: false,
+			expHighlights: []storage.Highlight{
+				{
+					BookID:   1,
+					ID:       1,
+					Text:     "text1",
+					Note:     "note1",
+					Chapter:  "chapter1",
+					Location: 10,
+					URL:      "url1",
+					Updated:  now,
+				},
+				{
+					BookID:   1,
+					ID:       2,
+					Text:     "text2",
+					Note:     "note2",
+					Chapter:  "chapter2",
+					Location: 20,
+					URL:      "url2",
+					Updated:  now,
+				},
+			},
+		},
+		{
+			name:   "query error",
+			bookID: 1,
+			err:    assert.AnError,
+			rows:   nil,
+			expErr: true,
+		},
+		{
+			name:   "scan error",
+			bookID: 1,
+			err:    nil,
+			rows: sqlmock.NewRows([]string{"id", "book_id", "text", "note", "chapter", "location", "url", "updated"}).
+				AddRow("invalid", 1, "text", "note", "chapter", 3, "url", now),
+			expErr: true,
+		},
+		{
+			name:   "time error",
+			bookID: 1,
+			err:    nil,
+			rows: sqlmock.NewRows([]string{"id", "book_id", "text", "note", "chapter", "location", "url", "updated"}).
+				AddRow(1, 1, "text", "note", "chapter", 3, "url", "invalid"),
+			expErr: true,
+		},
+		{
+			name:          "no highlights",
+			bookID:        999,
+			err:           nil,
+			rows:          sqlmock.NewRows([]string{"id", "book_id", "text", "note", "chapter", "location", "url", "updated"}),
+			expErr:        false,
+			expHighlights: []storage.Highlight{},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			rq := require.New(t)
+
+			db, mock, err := sqlmock.New(
+				sqlmock.MonitorPingsOption(true),
+				sqlmock.QueryMatcherOption(queryMatcher(t)),
+			)
+			rq.NoError(err)
+
+			s := &DB{
+				db: db,
+			}
+
+			exec := mock.ExpectQuery(`
+				SELECT id, book_id, text, note, chapter, location, url, updated 
+				FROM highlights 
+				WHERE book_id = ? 
+				ORDER BY location
+			`).WithArgs(tc.bookID)
+
+			if tc.err != nil {
+				exec.WillReturnError(tc.err)
+			} else {
+				exec.WillReturnRows(tc.rows)
+			}
+
+			if tc.expErr {
+				_, err := s.ListHighlightsByBook(context.Background(), tc.bookID)
+				rq.Error(err)
+			} else {
+				highlights, err := s.ListHighlightsByBook(context.Background(), tc.bookID)
+				rq.NoError(err)
+
+				rq.Equal(len(tc.expHighlights), len(highlights))
+
+				for i, expHighlight := range tc.expHighlights {
+					rq.Equal(expHighlight.BookID, highlights[i].BookID)
+					rq.Equal(expHighlight.ID, highlights[i].ID)
+					rq.Equal(expHighlight.Text, highlights[i].Text)
+					rq.Equal(expHighlight.Note, highlights[i].Note)
+					rq.Equal(expHighlight.Chapter, highlights[i].Chapter)
+					rq.Equal(expHighlight.Location, highlights[i].Location)
+					rq.Equal(expHighlight.URL, highlights[i].URL)
+				}
+			}
+		})
+	}
+}
+
 func TestSqlite_ListHighlights(t *testing.T) {
 	now := time.Now()
 

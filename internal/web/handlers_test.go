@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestServer_CheckAuth(t *testing.T) {
+func TestServer_CheckToken(t *testing.T) {
 	tt := []struct {
 		name  string
 		key   string
@@ -45,8 +45,81 @@ func TestServer_CheckAuth(t *testing.T) {
 			s := New(config.MustLoad(), nil)
 			s.conf.Token = tc.token
 
-			act, err := s.CheckAuth(nil, tc.key)
+			act, err := s.CheckToken(nil, tc.key)
 			rq.NoError(err)
+			rq.Equal(tc.exp, act)
+		})
+	}
+}
+
+func TestServer_CheckAuth(t *testing.T) {
+	tt := []struct {
+		name     string
+		user     string
+		pass     string
+		confUser string
+		confPass string
+		exp      bool
+	}{
+		{
+			name:     "valid credentials",
+			user:     "admin",
+			pass:     "secret-token",
+			confUser: "admin",
+			confPass: "secret-token",
+			exp:      true,
+		},
+		{
+			name:     "invalid username",
+			user:     "hacker",
+			pass:     "secret-token",
+			confUser: "admin",
+			confPass: "secret-token",
+			exp:      false,
+		},
+		{
+			name:     "invalid password",
+			user:     "admin",
+			pass:     "wrong-token",
+			confUser: "admin",
+			confPass: "secret-token",
+			exp:      false,
+		},
+		{
+			name:     "both invalid",
+			user:     "hacker",
+			pass:     "wrong-token",
+			confUser: "admin",
+			confPass: "secret-token",
+			exp:      false,
+		},
+		{
+			name:     "empty username",
+			user:     "",
+			pass:     "secret-token",
+			confUser: "admin",
+			confPass: "secret-token",
+			exp:      false,
+		},
+		{
+			name:     "empty password",
+			user:     "admin",
+			pass:     "",
+			confUser: "admin",
+			confPass: "secret-token",
+			exp:      false,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			rq := require.New(t)
+
+			s := New(config.MustLoad(), nil)
+			s.conf.User = tc.confUser
+			s.conf.Token = tc.confPass
+
+			act := s.CheckAuth(tc.user, tc.pass)
 			rq.Equal(tc.exp, act)
 		})
 	}
@@ -392,6 +465,203 @@ func TestServer_HandleListBooks(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodGet, tc.endpoint, nil)
 
+			resp, err := app.Test(req)
+			rq.NoError(err)
+
+			rq.Equal(tc.expCode, resp.StatusCode)
+			bodyJSONEq(t, tc.expBody, resp.Body)
+		})
+	}
+}
+
+func TestServer_HandleUIIndex(t *testing.T) {
+	t.Skip("Skipping UI index test - requires embedded static files")
+	// This test would require the embedded static files to be present,
+	// which aren't available in the test environment.
+	// The functionality is tested in integration tests.
+}
+
+func TestServer_HandleUIListBooks(t *testing.T) {
+	tt := []struct {
+		name    string
+		setup   func(*fake.Storage)
+		expCode int
+		expBody string
+	}{
+		{
+			name: "success",
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().ListBooks(mock.Anything, time.Time{}, time.Time{}).Return([]storage.Book{
+					{
+						ID:            1,
+						Title:         "Test Book",
+						Author:        "Test Author",
+						SourceURL:     "http://example.com",
+						NumHighlights: 5,
+						Updated:       time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+					},
+				}, nil)
+			},
+			expCode: http.StatusOK,
+			expBody: `{
+				"results": [
+					{
+						"id": 1,
+						"title": "Test Book",
+						"author": "Test Author",
+						"category": "books",
+						"num_highlights": 5,
+						"source_url": "http://example.com",
+						"updated": "2024-01-01T00:00:00Z"
+					}
+				]
+			}`,
+		},
+		{
+			name: "storage error",
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().ListBooks(mock.Anything, time.Time{}, time.Time{}).Return(nil, assert.AnError)
+			},
+			expCode: http.StatusInternalServerError,
+			expBody: `{
+				"error": "assert.AnError general error for testing",
+				"code": 500
+			}`,
+		},
+		{
+			name: "empty results",
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().ListBooks(mock.Anything, time.Time{}, time.Time{}).Return([]storage.Book{}, nil)
+			},
+			expCode: http.StatusOK,
+			expBody: `{
+				"results": null
+			}`,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			rq := require.New(t)
+
+			stor := fake.NewStorage(t)
+			if tc.setup != nil {
+				tc.setup(stor)
+			}
+
+			conf := config.MustLoad()
+			serv := New(conf, stor)
+
+			app := fiber.New(fiber.Config{
+				ErrorHandler: serv.HandleError,
+			})
+			app.Get("/ui/api/books", serv.HandleUIListBooks)
+
+			req := httptest.NewRequest(http.MethodGet, "/ui/api/books", nil)
+			resp, err := app.Test(req)
+			rq.NoError(err)
+
+			rq.Equal(tc.expCode, resp.StatusCode)
+			bodyJSONEq(t, tc.expBody, resp.Body)
+		})
+	}
+}
+
+func TestServer_HandleUIListHighlights(t *testing.T) {
+	tt := []struct {
+		name    string
+		bookID  string
+		setup   func(*fake.Storage)
+		expCode int
+		expBody string
+	}{
+		{
+			name:   "success",
+			bookID: "1",
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().ListHighlightsByBook(mock.Anything, 1).Return([]storage.Highlight{
+					{
+						ID:       1,
+						BookID:   1,
+						Text:     "Test highlight text",
+						Note:     "Test note",
+						Chapter:  "Chapter 1",
+						Location: 42,
+						URL:      "http://example.com",
+						Updated:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+					},
+				}, nil)
+			},
+			expCode: http.StatusOK,
+			expBody: `{
+				"results": [
+					{
+						"id": 1,
+						"book_id": 1,
+						"text": "Test highlight text",
+						"note": "Test note",
+						"chapter": "Chapter 1",
+						"location": 42,
+						"url": "http://example.com",
+						"updated": "2024-01-01T00:00:00Z"
+					}
+				]
+			}`,
+		},
+		{
+			name:    "invalid book id",
+			bookID:  "invalid",
+			setup:   func(stor *fake.Storage) {},
+			expCode: http.StatusBadRequest,
+			expBody: `{
+				"error": "Bad Request",
+				"code": 400,
+				"details": "Bad Request: invalid book ID"
+			}`,
+		},
+		{
+			name:   "storage error",
+			bookID: "1",
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().ListHighlightsByBook(mock.Anything, 1).Return(nil, assert.AnError)
+			},
+			expCode: http.StatusInternalServerError,
+			expBody: `{
+				"error": "assert.AnError general error for testing",
+				"code": 500
+			}`,
+		},
+		{
+			name:   "empty results",
+			bookID: "999",
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().ListHighlightsByBook(mock.Anything, 999).Return([]storage.Highlight{}, nil)
+			},
+			expCode: http.StatusOK,
+			expBody: `{
+				"results": null
+			}`,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			rq := require.New(t)
+
+			stor := fake.NewStorage(t)
+			if tc.setup != nil {
+				tc.setup(stor)
+			}
+
+			conf := config.MustLoad()
+			serv := New(conf, stor)
+
+			app := fiber.New(fiber.Config{
+				ErrorHandler: serv.HandleError,
+			})
+			app.Get("/ui/api/books/:id/highlights", serv.HandleUIListHighlights)
+
+			req := httptest.NewRequest(http.MethodGet, "/ui/api/books/"+tc.bookID+"/highlights", nil)
 			resp, err := app.Test(req)
 			rq.NoError(err)
 

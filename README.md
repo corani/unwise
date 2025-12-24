@@ -25,7 +25,31 @@ to set the API server location in the settings and supports the "chapter" proper
 
 You can install the plugin via [BRAT](https://tfthacker.com/BRAT).
 
-## Endpoints
+## Web UI
+
+The application includes a web-based user interface for browsing books and highlights. Access the UI at `http://localhost:3123/ui/` (or your configured address).
+
+### Features
+
+- Browse all books in your library
+- View highlights for any selected book
+- Search and filter books and highlights
+- Copy highlights to clipboard
+- Responsive two-pane layout
+
+### Authentication
+
+The UI requires basic authentication. The default username is `admin` and the password is your API token (configured via the `TOKEN` environment variable). You can customize the username using the `UI_USER` environment variable.
+
+### Test Data
+
+To populate the database with sample books and highlights for testing, use the provided SQL script:
+
+```sh
+sqlite3 /tmp/unwise.db < scripts/init_test_data.sql
+```
+
+## API Endpoints
 
 | Method | Path                 | Description                   | Used by      |
 | ------ | -------------------- | ----------------------------- | ------------ |
@@ -70,6 +94,7 @@ a `.env` file):
 | `REST_PATH` | Base path to listen on        | `/api/v2`   |
 | `DATA_PATH` | Path to store data            | `/tmp`      |
 | `TOKEN`     | Authentication token          | (generated) |
+| `UI_USER`   | Web UI username               | `admin`     |
 
 Note: if you don't provide a `TOKEN`, the application will generate one and print it to the
 console during startup.

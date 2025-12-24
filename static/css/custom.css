@@ -1,0 +1,193 @@
+/* Custom styles for Unwise UI */
+
+/* Theme toggle button styles */
+.theme-toggle {
+    font-size: 1rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.theme-toggle.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Light mode specific styles */
+[data-bs-theme="light"] body {
+    background-color: #f8f9fa;
+}
+
+[data-bs-theme="light"] .book-item.active {
+    background-color: #e7f1ff;
+    border-left-color: #0d6efd;
+}
+
+[data-bs-theme="light"] .book-item:hover {
+    background-color: #f8f9fa;
+}
+
+[data-bs-theme="light"] .highlight-text {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+[data-bs-theme="light"] #booksList::-webkit-scrollbar-track,
+[data-bs-theme="light"] #highlightsList::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+/* Dark mode specific styles */
+[data-bs-theme="dark"] body {
+    background-color: #212529;
+}
+
+[data-bs-theme="dark"] .book-item {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .book-item.active {
+    background-color: rgba(13, 110, 253, 0.2);
+    border-left-color: #0d6efd;
+}
+
+[data-bs-theme="dark"] .book-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-bs-theme="dark"] .book-title {
+    color: #f8f9fa;
+}
+
+[data-bs-theme="dark"] .book-author,
+[data-bs-theme="dark"] .book-meta {
+    color: #adb5bd;
+}
+
+[data-bs-theme="dark"] .highlight-text {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #f8f9fa;
+}
+
+[data-bs-theme="dark"] .highlight-note {
+    color: #adb5bd;
+    border-left-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-bs-theme="dark"] .highlight-meta {
+    color: #adb5bd;
+}
+
+[data-bs-theme="dark"] .highlight-card {
+    border-left-color: #0d6efd;
+    background-color: #2b3035;
+}
+
+[data-bs-theme="dark"] #booksList::-webkit-scrollbar-track,
+[data-bs-theme="dark"] #highlightsList::-webkit-scrollbar-track {
+    background: #2b3035;
+}
+
+[data-bs-theme="dark"] #booksList::-webkit-scrollbar-thumb,
+[data-bs-theme="dark"] #highlightsList::-webkit-scrollbar-thumb {
+    background: #495057;
+}
+
+[data-bs-theme="dark"] #booksList::-webkit-scrollbar-thumb:hover,
+[data-bs-theme="dark"] #highlightsList::-webkit-scrollbar-thumb:hover {
+    background: #6c757d;
+}
+
+/* Books list styling */
+#booksList {
+    max-height: calc(100vh - 250px);
+    overflow-y: auto;
+}
+
+.book-item {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+
+
+.book-title {
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 0.25rem;
+}
+
+.book-author {
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.book-meta {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+/* Highlights list styling */
+#highlightsList {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.highlight-card {
+    border-left: 3px solid #0d6efd;
+    margin-bottom: 1rem;
+}
+
+.highlight-text {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+}
+
+.highlight-note {
+    font-style: italic;
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    padding-left: 0.75rem;
+    border-left: 2px solid #dee2e6;
+}
+
+.highlight-meta {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.copy-button {
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.copy-button:hover {
+    opacity: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #booksList {
+        max-height: 400px;
+    }
+    
+    #highlightsList {
+        max-height: 500px;
+    }
+}
+
+/* Scrollbar styling */
+#booksList::-webkit-scrollbar,
+#highlightsList::-webkit-scrollbar {
+    width: 8px;
+}
+
+#booksList::-webkit-scrollbar-thumb,
+#highlightsList::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
