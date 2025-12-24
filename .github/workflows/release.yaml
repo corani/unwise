@@ -35,7 +35,7 @@ jobs:
           excludeLabels: 'duplicate,question,invalid,wontfix,release'
           addSections: '{"documentation":{"prefix":"**Documentation Updates:**","labels":["documentation"]}}'
 
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      - uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Update Changelog for ${{ env.CI_REF_NAME }}
           file_pattern: CHANGELOG.md
