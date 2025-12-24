@@ -9,8 +9,9 @@ Summary
 Architecture & data flow
 - Startup: `cmd/unwise/main.go` calls `config.MustLoad()`, creates a storage backend (`sqlite.New`) and constructs a web `Server` via `web.New`.
 - HTTP: `internal/web/app.go` builds the Fiber app and mounts routes. Handlers are methods on `web.Server` in `internal/web/handlers.go`.
-- Storage abstraction: `internal/storage.Storage` interface defines `AddBook`, `AddHighlight`, `ListBooks`, `ListHighlights`. The `sqlite` package provides the persistent storage implementation.
+- Storage abstraction: `internal/storage.Storage` interface defines `AddBook`, `AddHighlight`, `UpdateHighlight`, `DeleteHighlight`, `ListBooks`, `ListHighlights`, `ListHighlightsByBook`. The `sqlite` package provides the persistent storage implementation.
 - Request/response shapes: see `internal/web/types.go` for JSON shapes used by Moon+ Reader (`CreateHighlightRequest`) and Obsidian (`ListHighlightsResponse`, `ListBooksResponse`).
+- Web UI: A browser-based interface at `/ui/` allows viewing, editing, and deleting highlights. UI uses vanilla JavaScript with Bootstrap 5 for modals and styling. See `static/index.html` and `static/js/app.js`.
 
 Developer workflows
 - Build: run `./build.sh -b` — this sets `cfg/VERSION`, `cfg/HASH`, builds `bin/unwise` and uses `go build` flags from the script.
@@ -32,6 +33,7 @@ Integration points & external dependencies
 
 Tests & mocking
 - Tests live next to packages (e.g. `internal/storage/*_test.go`, `cmd/unwise/*_test.go`). Tests use `sqlmock` for `sqlite` behavior.
+- Test structure: Use table-driven tests with a `setup func(*testing.T, sqlmock.Sqlmock)` parameter for mock configuration. This pattern keeps tests maintainable and consistent across the codebase.
 - When adding tests that depend on time ranges, pay attention to `parseISO8601Datetime` and functions that treat zero `time.Time` as special (see `ListBooks` / `ListHighlights`).
 
 Examples & quick references
