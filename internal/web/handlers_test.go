@@ -689,6 +689,225 @@ func TestServer_HandleUIListHighlights(t *testing.T) {
 	}
 }
 
+func TestServer_HandleUIUpdateHighlight(t *testing.T) {
+	tt := []struct {
+		name    string
+		id      string
+		body    string
+		setup   func(*fake.Storage)
+		expCode int
+		expBody string
+	}{
+		{
+			name: "success",
+			id:   "1",
+			body: `{
+				"id": 1,
+				"book_id": 2,
+				"text": "updated text",
+				"note": "updated note",
+				"chapter": "updated chapter",
+				"location": 5,
+				"url": ""
+			}`,
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().UpdateHighlight(mock.Anything, storage.Highlight{
+					ID:       1,
+					BookID:   2,
+					Text:     "updated text",
+					Note:     "updated note",
+					Chapter:  "updated chapter",
+					Location: 5,
+					URL:      "",
+				}).Return(storage.Highlight{
+					ID:       1,
+					BookID:   2,
+					Text:     "updated text",
+					Note:     "updated note",
+					Chapter:  "updated chapter",
+					Location: 5,
+					URL:      "http://example.com",
+					Updated:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				}, nil)
+			},
+			expCode: http.StatusOK,
+			expBody: `{
+				"id": 1,
+				"book_id": 2,
+				"text": "updated text",
+				"note": "updated note",
+				"chapter": "updated chapter",
+				"location": 5,
+				"url": "http://example.com",
+				"updated": "2024-01-01T00:00:00Z"
+			}`,
+		},
+		{
+			name:    "invalid id",
+			id:      "invalid",
+			body:    `{}`,
+			setup:   func(stor *fake.Storage) {},
+			expCode: http.StatusBadRequest,
+			expBody: `{
+				"error": "Bad Request",
+				"code": 400,
+				"details": "Bad Request: invalid highlight ID"
+			}`,
+		},
+		{
+			name:    "invalid body",
+			id:      "1",
+			body:    `invalid json`,
+			setup:   func(stor *fake.Storage) {},
+			expCode: http.StatusBadRequest,
+			expBody: `{
+				"error": "Bad Request",
+				"code": 400,
+				"details": "Bad Request: invalid character 'i' looking for beginning of value"
+			}`,
+		},
+		{
+			name: "empty text",
+			id:   "1",
+			body: `{
+				"id": 1,
+				"book_id": 2,
+				"text": "",
+				"note": "note",
+				"chapter": "chapter",
+				"location": 5
+			}`,
+			setup:   func(stor *fake.Storage) {},
+			expCode: http.StatusBadRequest,
+			expBody: `{
+				"error": "Bad Request",
+				"code": 400,
+				"details": "Bad Request: text is required"
+			}`,
+		},
+		{
+			name: "storage error",
+			id:   "1",
+			body: `{
+				"id": 1,
+				"book_id": 2,
+				"text": "text",
+				"note": "note",
+				"chapter": "chapter",
+				"location": 5
+			}`,
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().UpdateHighlight(mock.Anything, mock.Anything).Return(storage.Highlight{}, assert.AnError)
+			},
+			expCode: http.StatusInternalServerError,
+			expBody: `{
+				"error": "assert.AnError general error for testing",
+				"code": 500
+			}`,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			rq := require.New(t)
+
+			stor := fake.NewStorage(t)
+			if tc.setup != nil {
+				tc.setup(stor)
+			}
+
+			conf := config.MustLoad()
+			serv := New(conf, stor)
+
+			app := fiber.New(fiber.Config{
+				ErrorHandler: serv.HandleError,
+			})
+			app.Put("/ui/api/highlights/:id", serv.HandleUIUpdateHighlight)
+
+			req := httptest.NewRequest(http.MethodPut, "/ui/api/highlights/"+tc.id, strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", fiber.MIMEApplicationJSON)
+
+			resp, err := app.Test(req)
+			rq.NoError(err)
+
+			rq.Equal(tc.expCode, resp.StatusCode)
+			bodyJSONEq(t, tc.expBody, resp.Body)
+		})
+	}
+}
+
+func TestServer_HandleUIDeleteHighlight(t *testing.T) {
+	tt := []struct {
+		name    string
+		id      string
+		setup   func(*fake.Storage)
+		expCode int
+		expBody string
+	}{
+		{
+			name: "success",
+			id:   "1",
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().DeleteHighlight(mock.Anything, 1).Return(nil)
+			},
+			expCode: http.StatusNoContent,
+			expBody: "",
+		},
+		{
+			name:    "invalid id",
+			id:      "invalid",
+			setup:   func(stor *fake.Storage) {},
+			expCode: http.StatusBadRequest,
+			expBody: `{
+				"error": "Bad Request",
+				"code": 400,
+				"details": "Bad Request: invalid highlight ID"
+			}`,
+		},
+		{
+			name: "storage error",
+			id:   "1",
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().DeleteHighlight(mock.Anything, 1).Return(assert.AnError)
+			},
+			expCode: http.StatusInternalServerError,
+			expBody: `{
+				"error": "assert.AnError general error for testing",
+				"code": 500
+			}`,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			rq := require.New(t)
+
+			stor := fake.NewStorage(t)
+			if tc.setup != nil {
+				tc.setup(stor)
+			}
+
+			conf := config.MustLoad()
+			serv := New(conf, stor)
+
+			app := fiber.New(fiber.Config{
+				ErrorHandler: serv.HandleError,
+			})
+			app.Delete("/ui/api/highlights/:id", serv.HandleUIDeleteHighlight)
+
+			req := httptest.NewRequest(http.MethodDelete, "/ui/api/highlights/"+tc.id, nil)
+
+			resp, err := app.Test(req)
+			rq.NoError(err)
+
+			rq.Equal(tc.expCode, resp.StatusCode)
+			if tc.expBody != "" {
+				bodyJSONEq(t, tc.expBody, resp.Body)
+			}
+		})
+	}
+}
+
 func bodyJSONEq(t *testing.T, exp string, act io.ReadCloser) {
 	t.Helper()
 
