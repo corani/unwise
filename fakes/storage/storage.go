@@ -213,6 +213,63 @@ func (_c *Storage_AddHighlight_Call) RunAndReturn(run func(ctx context.Context, 
 	return _c
 }
 
+// DeleteHighlight provides a mock function for the type Storage
+func (_mock *Storage) DeleteHighlight(ctx context.Context, id int) error {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteHighlight")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int) error); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Storage_DeleteHighlight_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteHighlight'
+type Storage_DeleteHighlight_Call struct {
+	*mock.Call
+}
+
+// DeleteHighlight is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int
+func (_e *Storage_Expecter) DeleteHighlight(ctx interface{}, id interface{}) *Storage_DeleteHighlight_Call {
+	return &Storage_DeleteHighlight_Call{Call: _e.mock.On("DeleteHighlight", ctx, id)}
+}
+
+func (_c *Storage_DeleteHighlight_Call) Run(run func(ctx context.Context, id int)) *Storage_DeleteHighlight_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Storage_DeleteHighlight_Call) Return(err error) *Storage_DeleteHighlight_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Storage_DeleteHighlight_Call) RunAndReturn(run func(ctx context.Context, id int) error) *Storage_DeleteHighlight_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListBooks provides a mock function for the type Storage
 func (_mock *Storage) ListBooks(ctx context.Context, lt time.Time, gt time.Time) ([]storage.Book, error) {
 	ret := _mock.Called(ctx, lt, gt)
@@ -425,6 +482,72 @@ func (_c *Storage_ListHighlightsByBook_Call) Return(highlights []storage.Highlig
 }
 
 func (_c *Storage_ListHighlightsByBook_Call) RunAndReturn(run func(ctx context.Context, bookID int) ([]storage.Highlight, error)) *Storage_ListHighlightsByBook_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateHighlight provides a mock function for the type Storage
+func (_mock *Storage) UpdateHighlight(ctx context.Context, h storage.Highlight) (storage.Highlight, error) {
+	ret := _mock.Called(ctx, h)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateHighlight")
+	}
+
+	var r0 storage.Highlight
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, storage.Highlight) (storage.Highlight, error)); ok {
+		return returnFunc(ctx, h)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, storage.Highlight) storage.Highlight); ok {
+		r0 = returnFunc(ctx, h)
+	} else {
+		r0 = ret.Get(0).(storage.Highlight)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, storage.Highlight) error); ok {
+		r1 = returnFunc(ctx, h)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Storage_UpdateHighlight_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateHighlight'
+type Storage_UpdateHighlight_Call struct {
+	*mock.Call
+}
+
+// UpdateHighlight is a helper method to define mock.On call
+//   - ctx context.Context
+//   - h storage.Highlight
+func (_e *Storage_Expecter) UpdateHighlight(ctx interface{}, h interface{}) *Storage_UpdateHighlight_Call {
+	return &Storage_UpdateHighlight_Call{Call: _e.mock.On("UpdateHighlight", ctx, h)}
+}
+
+func (_c *Storage_UpdateHighlight_Call) Run(run func(ctx context.Context, h storage.Highlight)) *Storage_UpdateHighlight_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 storage.Highlight
+		if args[1] != nil {
+			arg1 = args[1].(storage.Highlight)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Storage_UpdateHighlight_Call) Return(highlight storage.Highlight, err error) *Storage_UpdateHighlight_Call {
+	_c.Call.Return(highlight, err)
+	return _c
+}
+
+func (_c *Storage_UpdateHighlight_Call) RunAndReturn(run func(ctx context.Context, h storage.Highlight) (storage.Highlight, error)) *Storage_UpdateHighlight_Call {
 	_c.Call.Return(run)
 	return _c
 }

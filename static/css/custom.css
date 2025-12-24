@@ -30,6 +30,10 @@
     color: #212529;
 }
 
+[data-bs-theme="light"] .highlight-note {
+    border-left-color: #20c997;
+}
+
 [data-bs-theme="light"] #booksList::-webkit-scrollbar-track,
 [data-bs-theme="light"] #highlightsList::-webkit-scrollbar-track {
     background: #f1f1f1;
@@ -69,7 +73,7 @@
 
 [data-bs-theme="dark"] .highlight-note {
     color: #adb5bd;
-    border-left-color: rgba(255, 255, 255, 0.2);
+    border-left-color: #198754;
 }
 
 [data-bs-theme="dark"] .highlight-meta {
@@ -152,7 +156,7 @@
     font-size: 0.875rem;
     margin-bottom: 0.5rem;
     padding-left: 0.75rem;
-    border-left: 2px solid #dee2e6;
+    border-left: 2px solid #198754;
 }
 
 .highlight-meta {
@@ -160,13 +164,51 @@
     color: #6c757d;
 }
 
-.copy-button {
+/* Highlight action buttons */
+.highlight-meta .btn {
+    border: none;
+    background: none;
+    padding: 0.25rem 0.5rem;
     opacity: 0.7;
     transition: opacity 0.2s ease;
 }
 
-.copy-button:hover {
+.highlight-meta .btn:hover {
     opacity: 1;
+    background: none;
+}
+
+.highlight-meta .btn:focus {
+    box-shadow: none;
+}
+
+.highlight-meta .btn-outline-secondary {
+    color: #6c757d;
+}
+
+.highlight-meta .btn-outline-primary {
+    color: #0d6efd;
+}
+
+.highlight-meta .btn-outline-danger {
+    color: #dc3545;
+}
+
+.highlight-meta .btn-success {
+    color: #198754;
+    opacity: 1;
+}
+
+[data-bs-theme="dark"] .highlight-meta .btn-outline-secondary {
+    color: #adb5bd;
+}
+
+[data-bs-theme="dark"] .highlight-meta .btn-outline-primary {
+    color: #6ea8fe;
+}
+
+[data-bs-theme="dark"] .highlight-meta .btn-outline-danger {
+    color: #ea868f;
 }
 
 /* Responsive adjustments */

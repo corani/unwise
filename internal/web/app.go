@@ -41,6 +41,8 @@ func newApp(server *Server) *fiber.App {
 	ui.Get("/", server.HandleUIIndex)
 	ui.Get("/api/books", server.HandleUIListBooks)
 	ui.Get("/api/books/:id/highlights", server.HandleUIListHighlights)
+	ui.Put("/api/highlights/:id", server.HandleUIUpdateHighlight)
+	ui.Delete("/api/highlights/:id", server.HandleUIDeleteHighlight)
 
 	// API
 	// default RestPath="/api/v2"

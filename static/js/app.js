@@ -6,6 +6,7 @@
     let allBooks = [];
     let filteredBooks = [];
     let selectedBookId = null;
+    let editModal = null;
 
     // DOM Elements
     const elements = {
@@ -50,6 +51,9 @@
 
         // Set up theme management
         initTheme();
+
+        // Initialize modal
+        initModal();
 
         // Load books
         loadBooks();
@@ -274,19 +278,141 @@
         
         metaInfo.textContent = metaParts.join(' • ');
 
+        // Button group
+        const buttonGroup = document.createElement('div');
+        buttonGroup.className = 'd-flex gap-2';
+
         // Copy button
         const copyBtn = document.createElement('button');
-        copyBtn.className = 'btn btn-sm btn-outline-secondary copy-button';
+        copyBtn.className = 'btn btn-sm btn-outline-secondary';
         copyBtn.innerHTML = '📋 Copy';
-        copyBtn.addEventListener('click', () => copyHighlight(highlight));
+        copyBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            copyHighlight(highlight);
+        });
+
+        // Edit button
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-sm btn-outline-primary';
+        editBtn.innerHTML = '✏️ Edit';
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEditModal(highlight);
+        });
+
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-sm btn-outline-danger';
+        deleteBtn.innerHTML = '🗑️ Delete';
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteHighlight(highlight);
+        });
+
+        buttonGroup.appendChild(copyBtn);
+        buttonGroup.appendChild(editBtn);
+        buttonGroup.appendChild(deleteBtn);
 
         meta.appendChild(metaInfo);
-        meta.appendChild(copyBtn);
+        meta.appendChild(buttonGroup);
 
         cardBody.appendChild(meta);
         card.appendChild(cardBody);
 
         return card;
+    }
+
+    // Initialize modal
+    function initModal() {
+        const modalEl = document.getElementById('editModal');
+        editModal = new bootstrap.Modal(modalEl);
+        
+        document.getElementById('saveHighlightBtn').addEventListener('click', saveHighlight);
+    }
+
+    // Open edit modal with highlight data
+    function openEditModal(highlight) {
+        document.getElementById('editHighlightId').value = highlight.id;
+        document.getElementById('editHighlightBookId').value = highlight.book_id;
+        document.getElementById('editText').value = highlight.text;
+        document.getElementById('editNote').value = highlight.note || '';
+        document.getElementById('editChapter').value = highlight.chapter || '';
+        document.getElementById('editLocation').value = highlight.location || 0;
+        
+        editModal.show();
+    }
+
+    // Save edited highlight
+    async function saveHighlight() {
+        const id = parseInt(document.getElementById('editHighlightId').value);
+        const data = {
+            id: id,
+            book_id: parseInt(document.getElementById('editHighlightBookId').value),
+            text: document.getElementById('editText').value,
+            note: document.getElementById('editNote').value,
+            chapter: document.getElementById('editChapter').value,
+            location: parseInt(document.getElementById('editLocation').value) || 0,
+            url: ''
+        };
+        
+        // Validate required fields
+        if (!data.text.trim()) {
+            alert('Text is required');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/ui/api/highlights/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            editModal.hide();
+            
+            // Reload both books and highlights to reflect updated timestamps
+            await loadBooks();
+            if (selectedBookId) {
+                await loadHighlights(selectedBookId);
+            }
+        } catch (error) {
+            console.error('Error updating highlight:', error);
+            alert('Failed to update highlight: ' + error.message);
+        }
+    }
+
+    // Delete highlight with confirmation
+    async function deleteHighlight(highlight) {
+        const confirmText = highlight.text.length > 100 
+            ? highlight.text.substring(0, 100) + '...' 
+            : highlight.text;
+            
+        if (!confirm(`Are you sure you want to delete this highlight?\n\n"${confirmText}"`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/ui/api/highlights/${highlight.id}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            // Reload both books and highlights
+            await loadBooks();
+            if (selectedBookId) {
+                await loadHighlights(selectedBookId);
+            }
+        } catch (error) {
+            console.error('Error deleting highlight:', error);
+            alert('Failed to delete highlight: ' + error.message);
+        }
     }
 
     // Copy highlight text to clipboard
