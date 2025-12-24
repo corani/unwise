@@ -35,6 +35,8 @@ The application includes a web-based user interface for browsing books and highl
 - View highlights for any selected book
 - Search and filter books and highlights
 - Copy highlights to clipboard
+- Edit highlights (text, note, chapter, and location)
+- Delete highlights
 - Responsive two-pane layout
 
 ### Authentication

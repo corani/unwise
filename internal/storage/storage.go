@@ -16,6 +16,13 @@ type Storage interface {
 	// it returns the existing highlight.
 	AddHighlight(ctx context.Context, b Book, text, note, chapter string, location int, url string) (Highlight, error)
 
+	// UpdateHighlight updates an existing highlight. Only text, note, chapter, and location
+	// are modified. Other fields (ID, BookID, URL, Updated) are ignored by the implementation.
+	UpdateHighlight(ctx context.Context, h Highlight) (Highlight, error)
+
+	// DeleteHighlight deletes a highlight and updates the book's metadata.
+	DeleteHighlight(ctx context.Context, id int) error
+
 	// ListBooks returns a list of books from the storage.
 	ListBooks(ctx context.Context, lt, gt time.Time) ([]Book, error)
 

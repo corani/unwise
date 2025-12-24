@@ -14,11 +14,8 @@ function print_usage {
   echo "  -b                    build service"
   echo "  -d                    build the docker image"
   echo "  -g                    generate mocks"
+  echo "  -l                    run golangci-lint"
   echo "  -t                    run unit tests"
-}
-
-function go_install_tools {
-    do_echo tools/install.sh
 }
 
 function update_hash {
@@ -116,6 +113,9 @@ while [ "$#" -gt "0" ]; do
     -t)
         go_build
         go_test
+        ;;
+    -l)
+        do_echo golangci-lint run --timeout 5m
         ;;
     -g)
         go_generate 

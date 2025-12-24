@@ -93,7 +93,7 @@ func (s *DB) AddBook(ctx context.Context, title, author, source string) (storage
 	if err != nil {
 		return storage.Book{}, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	if rows.Next() {
 		var id, numHighlights int
@@ -131,7 +131,7 @@ func (s *DB) ListBooks(ctx context.Context, lt, gt time.Time) ([]storage.Book, e
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	for rows.Next() {
 		var (
@@ -168,7 +168,7 @@ func (s *DB) AddHighlight(ctx context.Context, b storage.Book, text, note, chapt
 		return storage.Highlight{}, err
 	}
 
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	if rows.Next() {
 		var id int
@@ -207,7 +207,7 @@ func (s *DB) ListHighlights(ctx context.Context, lt, gt time.Time) ([]storage.Hi
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	for rows.Next() {
 		var (
@@ -242,7 +242,7 @@ func (s *DB) ListHighlightsByBook(ctx context.Context, bookID int) ([]storage.Hi
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	for rows.Next() {
 		var (
@@ -263,4 +263,95 @@ func (s *DB) ListHighlightsByBook(ctx context.Context, bookID int) ([]storage.Hi
 	}
 
 	return highlights, nil
+}
+
+func (s *DB) UpdateHighlight(ctx context.Context, h storage.Highlight) (storage.Highlight, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return storage.Highlight{}, err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	h.Updated = time.Now()
+
+	// Update only editable fields (text, note, chapter, location)
+	_, err = tx.ExecContext(ctx, `
+		UPDATE highlights 
+		SET text = ?, note = ?, chapter = ?, location = ?, updated = ?
+		WHERE id = ?
+	`, h.Text, h.Note, h.Chapter, h.Location, h.Updated.Format(time.RFC3339), h.ID)
+	if err != nil {
+		return storage.Highlight{}, err
+	}
+
+	// Get the book_id and url for this highlight
+	row := tx.QueryRowContext(ctx, `
+		SELECT book_id, url 
+		FROM highlights 
+		WHERE id = ?
+	`, h.ID)
+
+	if err := row.Scan(&h.BookID, &h.URL); err != nil {
+		return storage.Highlight{}, err
+	}
+
+	// Update book's timestamp
+	_, err = tx.ExecContext(ctx, `
+		UPDATE books 
+		SET updated = ?
+		WHERE id = ?
+	`, h.Updated.Format(time.RFC3339), h.BookID)
+	if err != nil {
+		return storage.Highlight{}, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return storage.Highlight{}, err
+	}
+
+	// Return the updated highlight
+	return h, nil
+}
+
+func (s *DB) DeleteHighlight(ctx context.Context, id int) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	// Get book_id before deletion
+	var bookID int
+
+	row := tx.QueryRowContext(ctx, `
+		SELECT book_id 
+		FROM highlights 
+		WHERE id = ?
+	`, id)
+
+	if err := row.Scan(&bookID); err != nil {
+		return err
+	}
+
+	// Delete the highlight
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM highlights 
+		WHERE id = ?
+	`, id)
+	if err != nil {
+		return err
+	}
+
+	// Update book's timestamp
+	updated := time.Now()
+	_, err = tx.ExecContext(ctx, `
+		UPDATE books 
+		SET updated = ?
+		WHERE id = ?
+	`, updated.Format(time.RFC3339), bookID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }

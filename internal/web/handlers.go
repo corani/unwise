@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/corani/unwise/internal/storage"
 	"github.com/corani/unwise/static"
 	"github.com/gofiber/fiber/v2"
 )
@@ -189,6 +191,11 @@ func (s *Server) HandleUIListBooks(c *fiber.Ctx) error {
 		return err
 	}
 
+	// Sort the books by Updated time descending
+	sort.Slice(bs, func(i, j int) bool {
+		return bs[i].Updated.After(bs[j].Updated)
+	})
+
 	for _, book := range bs {
 		res.Results = append(res.Results, ListBook{
 			ID:            book.ID,
@@ -219,6 +226,11 @@ func (s *Server) HandleUIListHighlights(c *fiber.Ctx) error {
 		return err
 	}
 
+	// Sort the highlights by Location ascending
+	sort.Slice(hs, func(i, j int) bool {
+		return hs[i].Location < hs[j].Location
+	})
+
 	for _, highlight := range hs {
 		res.Results = append(res.Results, ListHighlight{
 			ID:        highlight.ID,
@@ -233,6 +245,69 @@ func (s *Server) HandleUIListHighlights(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(res)
+}
+
+func (s *Server) HandleUIUpdateHighlight(c *fiber.Ctx) error {
+	ctx := c.Context()
+
+	// Get ID from URL
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return fmt.Errorf("%w: invalid highlight ID", fiber.ErrBadRequest)
+	}
+
+	// Parse highlight from request body
+	var req ListHighlight
+	if err := c.BodyParser(&req); err != nil {
+		return fmt.Errorf("%w: %v", fiber.ErrBadRequest, err)
+	}
+
+	// Validate required fields
+	if req.Text == "" {
+		return fmt.Errorf("%w: text is required", fiber.ErrBadRequest)
+	}
+
+	// Create full Highlight struct - storage will ignore unused fields
+	h := storage.Highlight{
+		ID:       id,
+		BookID:   req.BookID,
+		Text:     req.Text,
+		Note:     req.Note,
+		Chapter:  req.Chapter,
+		Location: req.Location,
+		URL:      req.URL,
+	}
+
+	updated, err := s.stor.UpdateHighlight(ctx, h)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(ListHighlight{
+		ID:        updated.ID,
+		BookID:    updated.BookID,
+		Text:      updated.Text,
+		Note:      updated.Note,
+		Chapter:   updated.Chapter,
+		Location:  updated.Location,
+		URL:       updated.URL,
+		UpdatedAt: updated.Updated.Format(time.RFC3339),
+	})
+}
+
+func (s *Server) HandleUIDeleteHighlight(c *fiber.Ctx) error {
+	ctx := c.Context()
+
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return fmt.Errorf("%w: invalid highlight ID", fiber.ErrBadRequest)
+	}
+
+	if err := s.stor.DeleteHighlight(ctx, id); err != nil {
+		return err
+	}
+
+	return c.SendStatus(http.StatusNoContent)
 }
 
 func (s *Server) HandleError(c *fiber.Ctx, err error) error {
