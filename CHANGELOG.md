@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.2.1](https://github.com/corani/unwise/tree/v0.2.1) (2025-12-24)
+
+[Full Changelog](https://github.com/corani/unwise/compare/v0.2.0...v0.2.1)
+
+**Merged pull requests:**
+
+- fix: serve static files from embed.FS [\#139](https://github.com/corani/unwise/pull/139) ([corani](https://github.com/corani))
+- chore\(deps\): Update stefanzweifel/git-auto-commit-action action to v7 [\#138](https://github.com/corani/unwise/pull/138) ([renovate[bot]](https://github.com/apps/renovate))
+- chore\(deps\): Update docker/build-push-action action to v6 [\#137](https://github.com/corani/unwise/pull/137) ([renovate[bot]](https://github.com/apps/renovate))
+- chore\(deps\): Update codecov/codecov-action action to v5 [\#136](https://github.com/corani/unwise/pull/136) ([renovate[bot]](https://github.com/apps/renovate))
+- chore\(deps\): migrate Renovate config [\#135](https://github.com/corani/unwise/pull/135) ([renovate[bot]](https://github.com/apps/renovate))
+- chore\(deps\): Update actions/checkout action to v6 [\#134](https://github.com/corani/unwise/pull/134) ([renovate[bot]](https://github.com/apps/renovate))
+- chore\(renovate\): update renovate config [\#133](https://github.com/corani/unwise/pull/133) ([corani](https://github.com/corani))
+
 ## [v0.2.0](https://github.com/corani/unwise/tree/v0.2.0) (2025-12-24)
 
 [Full Changelog](https://github.com/corani/unwise/compare/v0.1.4...v0.2.0)
