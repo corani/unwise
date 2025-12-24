@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.2.2](https://github.com/corani/unwise/tree/v0.2.2) (2025-12-24)
+
+[Full Changelog](https://github.com/corani/unwise/compare/v0.2.1...v0.2.2)
+
+**Merged pull requests:**
+
+- feat\(ui\): edit and delete highlights [\#140](https://github.com/corani/unwise/pull/140) ([corani](https://github.com/corani))
+
 ## [v0.2.1](https://github.com/corani/unwise/tree/v0.2.1) (2025-12-24)
 
 [Full Changelog](https://github.com/corani/unwise/compare/v0.2.0...v0.2.1)
