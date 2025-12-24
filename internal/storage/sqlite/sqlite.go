@@ -93,7 +93,7 @@ func (s *DB) AddBook(ctx context.Context, title, author, source string) (storage
 	if err != nil {
 		return storage.Book{}, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	if rows.Next() {
 		var id, numHighlights int
@@ -131,7 +131,7 @@ func (s *DB) ListBooks(ctx context.Context, lt, gt time.Time) ([]storage.Book, e
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	for rows.Next() {
 		var (
@@ -168,7 +168,7 @@ func (s *DB) AddHighlight(ctx context.Context, b storage.Book, text, note, chapt
 		return storage.Highlight{}, err
 	}
 
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	if rows.Next() {
 		var id int
@@ -207,7 +207,7 @@ func (s *DB) ListHighlights(ctx context.Context, lt, gt time.Time) ([]storage.Hi
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	for rows.Next() {
 		var (
@@ -242,7 +242,7 @@ func (s *DB) ListHighlightsByBook(ctx context.Context, bookID int) ([]storage.Hi
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	for rows.Next() {
 		var (
@@ -270,7 +270,7 @@ func (s *DB) UpdateHighlight(ctx context.Context, h storage.Highlight) (storage.
 	if err != nil {
 		return storage.Highlight{}, err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	h.Updated = time.Now()
 
@@ -318,7 +318,7 @@ func (s *DB) DeleteHighlight(ctx context.Context, id int) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 
 	// Get book_id before deletion
 	var bookID int

@@ -914,7 +914,7 @@ func bodyJSONEq(t *testing.T, exp string, act io.ReadCloser) {
 	rq := require.New(t)
 
 	bs, err := io.ReadAll(act)
-	defer act.Close()
+	defer act.Close() //nolint:errcheck
 
 	rq.NoError(err)
 	rq.JSONEq(exp, string(bs))
