@@ -23,6 +23,6 @@ jobs:
       - name: Run go-test
         run: ./build.sh -t 
 
-      - uses: codecov/codecov-action@v4 
+      - uses: codecov/codecov-action@v5 
         with: 
           token: ${{ secrets.CODECOV_TOKEN }}
