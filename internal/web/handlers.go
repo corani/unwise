@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -189,6 +190,11 @@ func (s *Server) HandleUIListBooks(c *fiber.Ctx) error {
 		return err
 	}
 
+	// Sort the books by Updated time descending
+	sort.Slice(bs, func(i, j int) bool {
+		return bs[i].Updated.After(bs[j].Updated)
+	})
+
 	for _, book := range bs {
 		res.Results = append(res.Results, ListBook{
 			ID:            book.ID,
@@ -218,6 +224,11 @@ func (s *Server) HandleUIListHighlights(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+
+	// Sort the highlights by Location ascending
+	sort.Slice(hs, func(i, j int) bool {
+		return hs[i].Location < hs[j].Location
+	})
 
 	for _, highlight := range hs {
 		res.Results = append(res.Results, ListHighlight{
