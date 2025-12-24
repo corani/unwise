@@ -2,6 +2,7 @@ package web
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/basicauth"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/keyauth"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -21,11 +22,23 @@ func newApp(server *Server) *fiber.App {
 
 	app.Get("/", server.HandleRoot)
 
+	// UI
+	ui := app.Group("/ui")
+	ui.Use(basicauth.New(basicauth.Config{
+		Users:      map[string]string{},
+		Authorizer: server.CheckAuth,
+	}))
+	ui.Get("/", server.HandleUIIndex)
+	ui.Get("/api/books", server.HandleUIListBooks)
+	ui.Get("/api/books/:id/highlights", server.HandleUIListHighlights)
+	ui.Static("/static", "./static")
+
+	// API
 	// default RestPath="/api/v2"
 	api := app.Group(server.conf.RestPath)
 	api.Use(keyauth.New(keyauth.Config{
 		AuthScheme: "Token",
-		Validator:  server.CheckAuth,
+		Validator:  server.CheckToken,
 	}))
 
 	// check if token is valid

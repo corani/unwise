@@ -152,8 +152,80 @@ func (s *Server) HandleListBooks(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
-func (s *Server) CheckAuth(c *fiber.Ctx, key string) (bool, error) {
+func (s *Server) CheckToken(c *fiber.Ctx, key string) (bool, error) {
 	return key == s.conf.Token, nil
+}
+
+func (s *Server) CheckAuth(user, pass string) bool {
+	success := user == s.conf.User && pass == s.conf.Token
+
+	if !success {
+		s.conf.Logger.Warn("failed basic auth attempt",
+			"user", user)
+	}
+
+	return success
+}
+
+func (s *Server) HandleUIIndex(c *fiber.Ctx) error {
+	return c.SendFile("static/index.html")
+}
+
+func (s *Server) HandleUIListBooks(c *fiber.Ctx) error {
+	ctx := c.Context()
+
+	var res ListBooksResponse
+
+	// For UI, we want all books, so use zero times for filtering
+	bs, err := s.stor.ListBooks(ctx, time.Time{}, time.Time{})
+	if err != nil {
+		return err
+	}
+
+	for _, book := range bs {
+		res.Results = append(res.Results, ListBook{
+			ID:            book.ID,
+			Title:         book.Title,
+			Author:        book.Author,
+			SourceURL:     book.SourceURL,
+			Category:      HighlightCategoryBooks,
+			NumHighlights: book.NumHighlights,
+			UpdatedAt:     book.Updated.Format(time.RFC3339),
+		})
+	}
+
+	return c.JSON(res)
+}
+
+func (s *Server) HandleUIListHighlights(c *fiber.Ctx) error {
+	ctx := c.Context()
+
+	bookID, err := c.ParamsInt("id")
+	if err != nil {
+		return fmt.Errorf("%w: invalid book ID", fiber.ErrBadRequest)
+	}
+
+	var res ListHighlightsResponse
+
+	hs, err := s.stor.ListHighlightsByBook(ctx, bookID)
+	if err != nil {
+		return err
+	}
+
+	for _, highlight := range hs {
+		res.Results = append(res.Results, ListHighlight{
+			ID:        highlight.ID,
+			BookID:    highlight.BookID,
+			Text:      highlight.Text,
+			Note:      highlight.Note,
+			Chapter:   highlight.Chapter,
+			Location:  highlight.Location,
+			URL:       highlight.URL,
+			UpdatedAt: highlight.Updated.Format(time.RFC3339),
+		})
+	}
+
+	return c.JSON(res)
 }
 
 func (s *Server) HandleError(c *fiber.Ctx, err error) error {

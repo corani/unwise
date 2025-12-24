@@ -360,3 +360,71 @@ func (_c *Storage_ListHighlights_Call) RunAndReturn(run func(ctx context.Context
 	_c.Call.Return(run)
 	return _c
 }
+
+// ListHighlightsByBook provides a mock function for the type Storage
+func (_mock *Storage) ListHighlightsByBook(ctx context.Context, bookID int) ([]storage.Highlight, error) {
+	ret := _mock.Called(ctx, bookID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListHighlightsByBook")
+	}
+
+	var r0 []storage.Highlight
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int) ([]storage.Highlight, error)); ok {
+		return returnFunc(ctx, bookID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int) []storage.Highlight); ok {
+		r0 = returnFunc(ctx, bookID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]storage.Highlight)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = returnFunc(ctx, bookID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Storage_ListHighlightsByBook_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListHighlightsByBook'
+type Storage_ListHighlightsByBook_Call struct {
+	*mock.Call
+}
+
+// ListHighlightsByBook is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bookID int
+func (_e *Storage_Expecter) ListHighlightsByBook(ctx interface{}, bookID interface{}) *Storage_ListHighlightsByBook_Call {
+	return &Storage_ListHighlightsByBook_Call{Call: _e.mock.On("ListHighlightsByBook", ctx, bookID)}
+}
+
+func (_c *Storage_ListHighlightsByBook_Call) Run(run func(ctx context.Context, bookID int)) *Storage_ListHighlightsByBook_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Storage_ListHighlightsByBook_Call) Return(highlights []storage.Highlight, err error) *Storage_ListHighlightsByBook_Call {
+	_c.Call.Return(highlights, err)
+	return _c
+}
+
+func (_c *Storage_ListHighlightsByBook_Call) RunAndReturn(run func(ctx context.Context, bookID int) ([]storage.Highlight, error)) *Storage_ListHighlightsByBook_Call {
+	_c.Call.Return(run)
+	return _c
+}

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unwise - Book Highlights</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/ui/static/css/custom.css" rel="stylesheet">
+    <script>
+        // Apply theme before page renders to prevent flash
+        (function() {
+            const getPreferredTheme = () => {
+                const storedTheme = localStorage.getItem('theme');
+                if (storedTheme) {
+                    return storedTheme;
+                }
+                return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            };
+
+            const setTheme = (theme) => {
+                if (theme === 'auto') {
+                    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                    document.documentElement.setAttribute('data-bs-theme', systemTheme);
+                } else {
+                    document.documentElement.setAttribute('data-bs-theme', theme);
+                }
+            };
+
+            setTheme(getPreferredTheme());
+
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                const storedTheme = localStorage.getItem('theme');
+                if (!storedTheme || storedTheme === 'auto') {
+                    setTheme('auto');
+                }
+            });
+        })();
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">📚 Unwise - Book Highlights</span>
+            <div class="d-flex align-items-center">
+                <div class="btn-group" role="group" aria-label="Theme switcher">
+                    <button type="button" class="btn btn-sm btn-outline-light theme-toggle" data-theme="light" title="Light mode">
+                        ☀️
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-light theme-toggle" data-theme="auto" title="Auto (follow system)">
+                        🌓
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-light theme-toggle" data-theme="dark" title="Dark mode">
+                        🌙
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <!-- Left Panel: Books List -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Books</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <!-- Search Box -->
+                        <div class="p-3 border-bottom">
+                            <input type="text" 
+                                   id="searchInput" 
+                                   class="form-control" 
+                                   placeholder="Search books by title or author...">
+                        </div>
+                        
+                        <!-- Loading State -->
+                        <div id="booksLoading" class="text-center p-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading books...</p>
+                        </div>
+
+                        <!-- Error State -->
+                        <div id="booksError" class="alert alert-danger m-3" style="display: none;">
+                            <strong>Error loading books.</strong>
+                            <p id="booksErrorMessage" class="mb-0"></p>
+                        </div>
+
+                        <!-- Empty State -->
+                        <div id="booksEmpty" class="text-center p-4" style="display: none;">
+                            <p class="text-muted">No books found.</p>
+                        </div>
+
+                        <!-- Books List -->
+                        <div id="booksList" class="list-group list-group-flush" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Highlights -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0" id="highlightsTitle">Highlights</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Welcome State -->
+                        <div id="highlightsWelcome" class="text-center p-5">
+                            <h4 class="text-muted">Select a book to view highlights</h4>
+                            <p class="text-muted">Click on any book from the list to display its highlights here.</p>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div id="highlightsLoading" class="text-center p-4" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading highlights...</p>
+                        </div>
+
+                        <!-- Error State -->
+                        <div id="highlightsError" class="alert alert-danger" style="display: none;">
+                            <strong>Error loading highlights.</strong>
+                            <p id="highlightsErrorMessage" class="mb-0"></p>
+                        </div>
+
+                        <!-- Empty State -->
+                        <div id="highlightsEmpty" class="text-center p-4" style="display: none;">
+                            <p class="text-muted">No highlights found for this book.</p>
+                        </div>
+
+                        <!-- Highlights List -->
+                        <div id="highlightsList" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/ui/static/js/app.js"></script>
+</body>
+</html>
