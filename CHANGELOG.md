@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.2.3](https://github.com/corani/unwise/tree/v0.2.3) (2025-12-29)
+
+[Full Changelog](https://github.com/corani/unwise/compare/v0.2.2...v0.2.3)
+
+**Merged pull requests:**
+
+- fix: object null is not iterable when book has no highlights [\#143](https://github.com/corani/unwise/pull/143) ([corani](https://github.com/corani))
+- chore\(deps\): Update module modernc.org/sqlite to v1.42.2 [\#142](https://github.com/corani/unwise/pull/142) ([renovate[bot]](https://github.com/apps/renovate))
+- chore\(deps\): Update module modernc.org/sqlite to v1.42.1 [\#141](https://github.com/corani/unwise/pull/141) ([renovate[bot]](https://github.com/apps/renovate))
+
 ## [v0.2.2](https://github.com/corani/unwise/tree/v0.2.2) (2025-12-24)
 
 [Full Changelog](https://github.com/corani/unwise/compare/v0.2.1...v0.2.2)
