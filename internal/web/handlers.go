@@ -97,7 +97,9 @@ func (s *Server) HandleListHighlights(c *fiber.Ctx) error {
 		"updated__lt", p.updatedLT,
 		"updated__gt", p.updatedGT)
 
-	var res ListHighlightsResponse
+	res := ListHighlightsResponse{
+		Results: make([]ListHighlight, 0),
+	}
 
 	hs, err := s.stor.ListHighlights(ctx, p.updatedLT, p.updatedGT)
 	if err != nil {
@@ -133,7 +135,9 @@ func (s *Server) HandleListBooks(c *fiber.Ctx) error {
 		"updated__lt", p.updatedLT,
 		"updated__gt", p.updatedGT)
 
-	var res ListBooksResponse
+	res := ListBooksResponse{
+		Results: make([]ListBook, 0),
+	}
 
 	bs, err := s.stor.ListBooks(ctx, p.updatedLT, p.updatedGT)
 	if err != nil {
@@ -188,7 +192,9 @@ func (s *Server) HandleUIIndex(c *fiber.Ctx) error {
 func (s *Server) HandleUIListBooks(c *fiber.Ctx) error {
 	ctx := c.Context()
 
-	var res ListBooksResponse
+	res := ListBooksResponse{
+		Results: make([]ListBook, 0),
+	}
 
 	// For UI, we want all books, so use zero times for filtering
 	bs, err := s.stor.ListBooks(ctx, time.Time{}, time.Time{})
@@ -224,7 +230,9 @@ func (s *Server) HandleUIListHighlights(c *fiber.Ctx) error {
 		return fmt.Errorf("%w: invalid book ID", fiber.ErrBadRequest)
 	}
 
-	var res ListHighlightsResponse
+	res := ListHighlightsResponse{
+		Results: make([]ListHighlight, 0),
+	}
 
 	hs, err := s.stor.ListHighlightsByBook(ctx, bookID)
 	if err != nil {

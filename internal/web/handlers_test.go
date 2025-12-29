@@ -575,7 +575,7 @@ func TestServer_HandleUIListBooks(t *testing.T) {
 			},
 			expCode: http.StatusOK,
 			expBody: `{
-				"results": null
+				"results": []
 			}`,
 		},
 	}
@@ -679,7 +679,7 @@ func TestServer_HandleUIListHighlights(t *testing.T) {
 			},
 			expCode: http.StatusOK,
 			expBody: `{
-				"results": null
+				"results": []
 			}`,
 		},
 	}
