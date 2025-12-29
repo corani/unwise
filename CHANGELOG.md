@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.2.4](https://github.com/corani/unwise/tree/v0.2.4) (2025-12-29)
+
+[Full Changelog](https://github.com/corani/unwise/compare/v0.2.3...v0.2.4)
+
+**Merged pull requests:**
+
+- fix: object null is not iterable [\#144](https://github.com/corani/unwise/pull/144) ([corani](https://github.com/corani))
+
 ## [v0.2.3](https://github.com/corani/unwise/tree/v0.2.3) (2025-12-29)
 
 [Full Changelog](https://github.com/corani/unwise/compare/v0.2.2...v0.2.3)
