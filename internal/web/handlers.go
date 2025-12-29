@@ -141,6 +141,11 @@ func (s *Server) HandleListBooks(c *fiber.Ctx) error {
 	}
 
 	for _, book := range bs {
+		// NOTE(daniel): avoid "object null is not iterable" error in the Obsidian plugin.
+		if book.NumHighlights == 0 {
+			continue
+		}
+
 		res.Results = append(res.Results, ListBook{
 			ID:            book.ID,
 			Title:         book.Title,

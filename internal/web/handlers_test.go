@@ -428,7 +428,7 @@ func TestServer_HandleListBooks(t *testing.T) {
 			endpoint: "/books",
 			setup: func(stor *fake.Storage) {
 				stor.EXPECT().ListBooks(mock.Anything, time.Time{}, time.Time{}).Return([]storage.Book{
-					{ID: 1},
+					{ID: 1, NumHighlights: 5},
 				}, nil)
 			},
 			expCode: http.StatusOK,
@@ -438,7 +438,29 @@ func TestServer_HandleListBooks(t *testing.T) {
 					"category": "books",
 					"author": "",
 					"title": "",
-					"num_highlights": 0,
+					"num_highlights": 5,
+					"source_url": "",
+					"updated": "0001-01-01T00:00:00Z"
+				}
+			]}`,
+		},
+		{
+			name:     "skips books with no highlights",
+			endpoint: "/books",
+			setup: func(stor *fake.Storage) {
+				stor.EXPECT().ListBooks(mock.Anything, time.Time{}, time.Time{}).Return([]storage.Book{
+					{ID: 1, NumHighlights: 0},
+					{ID: 2, NumHighlights: 3},
+				}, nil)
+			},
+			expCode: http.StatusOK,
+			expBody: `{"results":[
+				{
+					"id": 2,
+					"category": "books",
+					"author": "",
+					"title": "",
+					"num_highlights": 3,
 					"source_url": "",
 					"updated": "0001-01-01T00:00:00Z"
 				}
