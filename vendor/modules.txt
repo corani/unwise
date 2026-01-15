@@ -284,7 +284,7 @@ golang.org/x/tools/internal/versions
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
-# modernc.org/libc v1.67.4
+# modernc.org/libc v1.67.6
 ## explicit; go 1.24.0
 modernc.org/libc
 modernc.org/libc/errno
@@ -318,7 +318,7 @@ modernc.org/mathutil
 # modernc.org/memory v1.11.0
 ## explicit; go 1.23.0
 modernc.org/memory
-# modernc.org/sqlite v1.44.0
+# modernc.org/sqlite v1.44.1
 ## explicit; go 1.24.0
 modernc.org/sqlite
 modernc.org/sqlite/lib
