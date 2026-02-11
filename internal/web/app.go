@@ -1,20 +1,17 @@
 package web
 
 import (
-	"net/http"
-
 	"github.com/corani/unwise/static"
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/basicauth"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	"github.com/gofiber/fiber/v2/middleware/helmet"
-	"github.com/gofiber/fiber/v2/middleware/keyauth"
-	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/basicauth"
+	"github.com/gofiber/fiber/v3/middleware/helmet"
+	"github.com/gofiber/fiber/v3/middleware/keyauth"
+	"github.com/gofiber/fiber/v3/middleware/logger"
+	staticmw "github.com/gofiber/fiber/v3/middleware/static"
 )
 
 func newApp(server *Server) *fiber.App {
 	app := fiber.New(fiber.Config{
-		EnablePrintRoutes: false,
 		StreamRequestBody: true,
 		StrictRouting:     false, // ignore trailing slashes
 		ErrorHandler:      server.HandleError,
@@ -32,10 +29,9 @@ func newApp(server *Server) *fiber.App {
 		Users:      map[string]string{},
 		Authorizer: server.CheckAuth,
 	}))
-	ui.Use("/static", filesystem.New(filesystem.Config{
-		Root:       http.FS(static.FS),
-		PathPrefix: "",
-		Browse:     false,
+	ui.Use("/static", staticmw.New("", staticmw.Config{
+		FS:     static.FS,
+		Browse: false,
 	}))
 
 	ui.Get("/", server.HandleUIIndex)
@@ -48,8 +44,7 @@ func newApp(server *Server) *fiber.App {
 	// default RestPath="/api/v2"
 	api := app.Group(server.conf.RestPath)
 	api.Use(keyauth.New(keyauth.Config{
-		AuthScheme: "Token",
-		Validator:  server.CheckToken,
+		Validator: server.CheckToken,
 	}))
 
 	// check if token is valid

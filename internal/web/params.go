@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 type params struct {
@@ -13,8 +13,8 @@ type params struct {
 	updatedGT time.Time
 }
 
-func parseParams(c *fiber.Ctx) (*params, error) {
-	pageSize := c.QueryInt("page_size", 100)
+func parseParams(c fiber.Ctx) (*params, error) {
+	pageSize := fiber.Query[int](c, "page_size", 100)
 	if pageSize < 0 || pageSize > 1000 {
 		return nil, fmt.Errorf("%w: invalid page_size %d", fiber.ErrBadRequest, pageSize)
 	}

@@ -11,7 +11,7 @@ import (
 	fake "github.com/corani/unwise/fakes/storage"
 	"github.com/corani/unwise/internal/config"
 	"github.com/corani/unwise/internal/storage"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -119,7 +119,7 @@ func TestServer_CheckAuth(t *testing.T) {
 			s.conf.User = tc.confUser
 			s.conf.Token = tc.confPass
 
-			act := s.CheckAuth(tc.user, tc.pass)
+			act := s.CheckAuth(tc.user, tc.pass, nil)
 			rq.Equal(tc.exp, act)
 		})
 	}
@@ -161,9 +161,9 @@ func TestServer_HandleError(t *testing.T) {
 			endpoint: "/error",
 			expCode:  http.StatusNotFound,
 			expBody: `{
-				"error":"Cannot GET /error",
+				"error":"Not Found",
 				"code":404,
-				"details":"Cannot GET /error"
+				"details":"Not Found"
 			}`,
 		},
 		{
@@ -182,10 +182,8 @@ func TestServer_HandleError(t *testing.T) {
 			rq := require.New(t)
 			s := New(config.MustLoad(), nil)
 
-			app := fiber.New(fiber.Config{
-				ErrorHandler: s.HandleError,
-			})
-			app.Get("/custom", func(c *fiber.Ctx) error {
+			app := fiber.New(fiber.Config{ErrorHandler: s.HandleError})
+			app.Get("/custom", func(c fiber.Ctx) error {
 				return assert.AnError
 			})
 
@@ -275,9 +273,7 @@ func TestServer_HandleCreateHighlights(t *testing.T) {
 			conf := config.MustLoad()
 			serv := New(conf, stor)
 
-			app := fiber.New(fiber.Config{
-				ErrorHandler: serv.HandleError,
-			})
+			app := fiber.New(fiber.Config{ErrorHandler: serv.HandleError})
 			app.Post("/highlights", serv.HandleCreateHighlights)
 
 			req := httptest.NewRequest(http.MethodPost, "/highlights", strings.NewReader(tc.content))
@@ -369,9 +365,7 @@ func TestServer_HandleListHighlights(t *testing.T) {
 			conf := config.MustLoad()
 			serv := New(conf, stor)
 
-			app := fiber.New(fiber.Config{
-				ErrorHandler: serv.HandleError,
-			})
+			app := fiber.New(fiber.Config{ErrorHandler: serv.HandleError})
 			app.Get("/highlights", serv.HandleListHighlights)
 
 			req := httptest.NewRequest(http.MethodGet, tc.endpoint, nil)
@@ -480,9 +474,7 @@ func TestServer_HandleListBooks(t *testing.T) {
 			conf := config.MustLoad()
 			serv := New(conf, stor)
 
-			app := fiber.New(fiber.Config{
-				ErrorHandler: serv.HandleError,
-			})
+			app := fiber.New(fiber.Config{ErrorHandler: serv.HandleError})
 			app.Get("/books", serv.HandleListBooks)
 
 			req := httptest.NewRequest(http.MethodGet, tc.endpoint, nil)
@@ -502,9 +494,7 @@ func TestServer_HandleUIIndex(t *testing.T) {
 	conf := config.MustLoad()
 	serv := New(conf, nil)
 
-	app := fiber.New(fiber.Config{
-		ErrorHandler: serv.HandleError,
-	})
+	app := fiber.New(fiber.Config{ErrorHandler: serv.HandleError})
 	app.Get("/ui/", serv.HandleUIIndex)
 
 	req := httptest.NewRequest(http.MethodGet, "/ui/", nil)
@@ -592,9 +582,7 @@ func TestServer_HandleUIListBooks(t *testing.T) {
 			conf := config.MustLoad()
 			serv := New(conf, stor)
 
-			app := fiber.New(fiber.Config{
-				ErrorHandler: serv.HandleError,
-			})
+			app := fiber.New(fiber.Config{ErrorHandler: serv.HandleError})
 			app.Get("/ui/api/books", serv.HandleUIListBooks)
 
 			req := httptest.NewRequest(http.MethodGet, "/ui/api/books", nil)
@@ -696,9 +684,7 @@ func TestServer_HandleUIListHighlights(t *testing.T) {
 			conf := config.MustLoad()
 			serv := New(conf, stor)
 
-			app := fiber.New(fiber.Config{
-				ErrorHandler: serv.HandleError,
-			})
+			app := fiber.New(fiber.Config{ErrorHandler: serv.HandleError})
 			app.Get("/ui/api/books/:id/highlights", serv.HandleUIListHighlights)
 
 			req := httptest.NewRequest(http.MethodGet, "/ui/api/books/"+tc.bookID+"/highlights", nil)
@@ -841,9 +827,7 @@ func TestServer_HandleUIUpdateHighlight(t *testing.T) {
 			conf := config.MustLoad()
 			serv := New(conf, stor)
 
-			app := fiber.New(fiber.Config{
-				ErrorHandler: serv.HandleError,
-			})
+			app := fiber.New(fiber.Config{ErrorHandler: serv.HandleError})
 			app.Put("/ui/api/highlights/:id", serv.HandleUIUpdateHighlight)
 
 			req := httptest.NewRequest(http.MethodPut, "/ui/api/highlights/"+tc.id, strings.NewReader(tc.body))
@@ -912,9 +896,7 @@ func TestServer_HandleUIDeleteHighlight(t *testing.T) {
 			conf := config.MustLoad()
 			serv := New(conf, stor)
 
-			app := fiber.New(fiber.Config{
-				ErrorHandler: serv.HandleError,
-			})
+			app := fiber.New(fiber.Config{ErrorHandler: serv.HandleError})
 			app.Delete("/ui/api/highlights/:id", serv.HandleUIDeleteHighlight)
 
 			req := httptest.NewRequest(http.MethodDelete, "/ui/api/highlights/"+tc.id, nil)
