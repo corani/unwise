@@ -10,25 +10,25 @@ import (
 
 	"github.com/corani/unwise/internal/storage"
 	"github.com/corani/unwise/static"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func (s *Server) HandleRoot(c *fiber.Ctx) error {
+func (s *Server) HandleRoot(c fiber.Ctx) error {
 	// NOTE(daniel): unauthenticated endpoint.
 
 	return c.SendStatus(http.StatusNoContent)
 }
 
-func (s *Server) HandleAuth(c *fiber.Ctx) error {
+func (s *Server) HandleAuth(c fiber.Ctx) error {
 	return c.SendStatus(http.StatusNoContent)
 }
 
-func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
-	ctx := c.Context()
+func (s *Server) HandleCreateHighlights(c fiber.Ctx) error {
+	ctx := c.RequestCtx()
 
 	var req CreateHighlightRequest
 
-	if err := c.BodyParser(&req); err != nil {
+	if err := c.Bind().Body(&req); err != nil {
 		return fmt.Errorf("%w: %v (raw=%q)", fiber.ErrBadRequest, err, string(c.Body()))
 	}
 
@@ -84,8 +84,8 @@ func (s *Server) HandleCreateHighlights(c *fiber.Ctx) error {
 	return c.JSON(list)
 }
 
-func (s *Server) HandleListHighlights(c *fiber.Ctx) error {
-	ctx := c.Context()
+func (s *Server) HandleListHighlights(c fiber.Ctx) error {
+	ctx := c.RequestCtx()
 
 	p, err := parseParams(c)
 	if err != nil {
@@ -122,8 +122,8 @@ func (s *Server) HandleListHighlights(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
-func (s *Server) HandleListBooks(c *fiber.Ctx) error {
-	ctx := c.Context()
+func (s *Server) HandleListBooks(c fiber.Ctx) error {
+	ctx := c.RequestCtx()
 
 	p, err := parseParams(c)
 	if err != nil {
@@ -145,7 +145,7 @@ func (s *Server) HandleListBooks(c *fiber.Ctx) error {
 	}
 
 	for _, book := range bs {
-		// NOTE(daniel): avoid "object null is not iterable" error in the Obsidian plugin.
+		// NOTE(daniel): probably not necessary, but skip books with zero highlights.
 		if book.NumHighlights == 0 {
 			continue
 		}
@@ -164,11 +164,11 @@ func (s *Server) HandleListBooks(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
-func (s *Server) CheckToken(c *fiber.Ctx, key string) (bool, error) {
+func (s *Server) CheckToken(c fiber.Ctx, key string) (bool, error) {
 	return key == s.conf.Token, nil
 }
 
-func (s *Server) CheckAuth(user, pass string) bool {
+func (s *Server) CheckAuth(user, pass string, _ fiber.Ctx) bool {
 	success := user == s.conf.User && pass == s.conf.Token
 
 	if !success {
@@ -179,7 +179,7 @@ func (s *Server) CheckAuth(user, pass string) bool {
 	return success
 }
 
-func (s *Server) HandleUIIndex(c *fiber.Ctx) error {
+func (s *Server) HandleUIIndex(c fiber.Ctx) error {
 	data, err := static.FS.ReadFile("index.html")
 	if err != nil {
 		return err
@@ -189,8 +189,8 @@ func (s *Server) HandleUIIndex(c *fiber.Ctx) error {
 	return c.Send(data)
 }
 
-func (s *Server) HandleUIListBooks(c *fiber.Ctx) error {
-	ctx := c.Context()
+func (s *Server) HandleUIListBooks(c fiber.Ctx) error {
+	ctx := c.RequestCtx()
 
 	res := ListBooksResponse{
 		Results: make([]ListBook, 0),
@@ -222,11 +222,11 @@ func (s *Server) HandleUIListBooks(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
-func (s *Server) HandleUIListHighlights(c *fiber.Ctx) error {
-	ctx := c.Context()
+func (s *Server) HandleUIListHighlights(c fiber.Ctx) error {
+	ctx := c.RequestCtx()
 
-	bookID, err := c.ParamsInt("id")
-	if err != nil {
+	bookID := fiber.Params(c, "id", -1)
+	if bookID < 0 {
 		return fmt.Errorf("%w: invalid book ID", fiber.ErrBadRequest)
 	}
 
@@ -260,18 +260,18 @@ func (s *Server) HandleUIListHighlights(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
-func (s *Server) HandleUIUpdateHighlight(c *fiber.Ctx) error {
-	ctx := c.Context()
+func (s *Server) HandleUIUpdateHighlight(c fiber.Ctx) error {
+	ctx := c.RequestCtx()
 
 	// Get ID from URL
-	id, err := c.ParamsInt("id")
-	if err != nil {
+	id := fiber.Params(c, "id", -1)
+	if id < 0 {
 		return fmt.Errorf("%w: invalid highlight ID", fiber.ErrBadRequest)
 	}
 
 	// Parse highlight from request body
 	var req ListHighlight
-	if err := c.BodyParser(&req); err != nil {
+	if err := c.Bind().Body(&req); err != nil {
 		return fmt.Errorf("%w: %v", fiber.ErrBadRequest, err)
 	}
 
@@ -308,11 +308,11 @@ func (s *Server) HandleUIUpdateHighlight(c *fiber.Ctx) error {
 	})
 }
 
-func (s *Server) HandleUIDeleteHighlight(c *fiber.Ctx) error {
-	ctx := c.Context()
+func (s *Server) HandleUIDeleteHighlight(c fiber.Ctx) error {
+	ctx := c.RequestCtx()
 
-	id, err := c.ParamsInt("id")
-	if err != nil {
+	id := fiber.Params(c, "id", -1)
+	if id < 0 {
 		return fmt.Errorf("%w: invalid highlight ID", fiber.ErrBadRequest)
 	}
 
@@ -323,7 +323,7 @@ func (s *Server) HandleUIDeleteHighlight(c *fiber.Ctx) error {
 	return c.SendStatus(http.StatusNoContent)
 }
 
-func (s *Server) HandleError(c *fiber.Ctx, err error) error {
+func (s *Server) HandleError(c fiber.Ctx, err error) error {
 	var e *fiber.Error
 
 	if errors.As(err, &e) {
@@ -343,3 +343,5 @@ func (s *Server) HandleError(c *fiber.Ctx, err error) error {
 			Code:  http.StatusInternalServerError,
 		})
 }
+
+// fiber:context-methods migrated

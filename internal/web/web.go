@@ -3,7 +3,7 @@ package web
 import (
 	"github.com/corani/unwise/internal/config"
 	"github.com/corani/unwise/internal/storage"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 type Server struct {
