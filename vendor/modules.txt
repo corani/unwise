@@ -207,7 +207,7 @@ github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/reuseport
 github.com/valyala/fasthttp/stackless
 github.com/valyala/fasthttp/tcplisten
-# github.com/vektra/mockery/v3 v3.6.4
+# github.com/vektra/mockery/v3 v3.7.0
 ## explicit; go 1.25.0
 github.com/vektra/mockery/v3
 github.com/vektra/mockery/v3/config
