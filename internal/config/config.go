@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"charm.land/log/v2"
 	env "github.com/caarlos0/env/v11"
-	"github.com/charmbracelet/log"
 	"github.com/corani/unwise/cfg"
 	"github.com/google/uuid"
 	dotenv "github.com/joho/godotenv"
