@@ -1,3 +1,9 @@
+# charm.land/lipgloss/v2 v2.0.1
+## explicit; go 1.25.0
+charm.land/lipgloss/v2
+# charm.land/log/v2 v2.0.0
+## explicit; go 1.25.8
+charm.land/log/v2
 # github.com/DATA-DOG/go-sqlmock v1.5.2
 ## explicit; go 1.15
 github.com/DATA-DOG/go-sqlmock
@@ -5,9 +11,6 @@ github.com/DATA-DOG/go-sqlmock
 ## explicit; go 1.22
 github.com/andybalholm/brotli
 github.com/andybalholm/brotli/matchfinder
-# github.com/aymanbagabas/go-osc52/v2 v2.0.1
-## explicit; go 1.16
-github.com/aymanbagabas/go-osc52/v2
 # github.com/brunoga/deep v1.3.1
 ## explicit; go 1.20.0
 github.com/brunoga/deep
@@ -15,30 +18,32 @@ github.com/brunoga/deep/internal/unsafe
 # github.com/caarlos0/env/v11 v11.4.0
 ## explicit; go 1.18
 github.com/caarlos0/env/v11
-# github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc
-## explicit; go 1.18
+# github.com/charmbracelet/colorprofile v0.4.2
+## explicit; go 1.24.2
 github.com/charmbracelet/colorprofile
-# github.com/charmbracelet/lipgloss v1.1.0
-## explicit; go 1.18
-github.com/charmbracelet/lipgloss
-# github.com/charmbracelet/log v0.4.2
-## explicit; go 1.19
-github.com/charmbracelet/log
-# github.com/charmbracelet/x/ansi v0.8.0
-## explicit; go 1.18
+# github.com/charmbracelet/ultraviolet v0.0.0-20251205161215-1948445e3318
+## explicit; go 1.24.2
+github.com/charmbracelet/ultraviolet
+# github.com/charmbracelet/x/ansi v0.11.6
+## explicit; go 1.24.2
 github.com/charmbracelet/x/ansi
 github.com/charmbracelet/x/ansi/kitty
 github.com/charmbracelet/x/ansi/parser
-# github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd
-## explicit; go 1.18
-github.com/charmbracelet/x/cellbuf
-# github.com/charmbracelet/x/term v0.2.1
-## explicit; go 1.18
+# github.com/charmbracelet/x/term v0.2.2
+## explicit; go 1.24.0
 github.com/charmbracelet/x/term
-# github.com/clipperhouse/uax29/v2 v2.2.0
+# github.com/charmbracelet/x/termios v0.1.1
+## explicit; go 1.18
+github.com/charmbracelet/x/termios
+# github.com/charmbracelet/x/windows v0.2.2
+## explicit; go 1.23.0
+github.com/charmbracelet/x/windows
+# github.com/clipperhouse/displaywidth v0.11.0
+## explicit; go 1.18
+github.com/clipperhouse/displaywidth
+# github.com/clipperhouse/uax29/v2 v2.7.0
 ## explicit; go 1.18
 github.com/clipperhouse/uax29/v2/graphemes
-github.com/clipperhouse/uax29/v2/internal/iterators
 # github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 ## explicit
 github.com/davecgh/go-spew/spew
@@ -137,7 +142,7 @@ github.com/knadh/koanf/providers/structs
 # github.com/knadh/koanf/v2 v2.3.2
 ## explicit; go 1.23.0
 github.com/knadh/koanf/v2
-# github.com/lucasb-eyer/go-colorful v1.2.0
+# github.com/lucasb-eyer/go-colorful v1.3.0
 ## explicit; go 1.12
 github.com/lucasb-eyer/go-colorful
 # github.com/mattn/go-colorable v0.1.14
@@ -155,9 +160,9 @@ github.com/mitchellh/copystructure
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/muesli/termenv v0.16.0
+# github.com/muesli/cancelreader v0.2.2
 ## explicit; go 1.17
-github.com/muesli/termenv
+github.com/muesli/cancelreader
 # github.com/ncruces/go-strftime v1.0.0
 ## explicit; go 1.17
 github.com/ncruces/go-strftime
@@ -260,8 +265,8 @@ golang.org/x/net/idna
 ## explicit; go 1.24.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.41.0
-## explicit; go 1.24.0
+# golang.org/x/sys v0.42.0
+## explicit; go 1.25.0
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
