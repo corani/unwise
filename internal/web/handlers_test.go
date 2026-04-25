@@ -224,7 +224,7 @@ func TestServer_HandleCreateHighlights(t *testing.T) {
 			expBody: `{
 				"error":"Bad Request",
 				"code":400,
-				"details":"Bad Request: invalid character 'i' looking for beginning of value (raw=\"invalid\")"
+				"details":"Bad Request: bind from body: invalid character 'i' looking for beginning of value (raw=\"invalid\")"
 			}`,
 		},
 		{
@@ -771,7 +771,7 @@ func TestServer_HandleUIUpdateHighlight(t *testing.T) {
 			expBody: `{
 				"error": "Bad Request",
 				"code": 400,
-				"details": "Bad Request: invalid character 'i' looking for beginning of value"
+				"details": "Bad Request: bind from body: invalid character 'i' looking for beginning of value"
 			}`,
 		},
 		{
