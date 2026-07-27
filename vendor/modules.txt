@@ -371,7 +371,7 @@ modernc.org/memory
 modernc.org/sqlite
 modernc.org/sqlite/lib
 modernc.org/sqlite/vtab
-# mvdan.cc/gofumpt v0.10.0
+# mvdan.cc/gofumpt v0.11.0
 ## explicit; go 1.25.0
 mvdan.cc/gofumpt
 mvdan.cc/gofumpt/format
