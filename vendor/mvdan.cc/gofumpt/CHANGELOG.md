@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.11.0] - 2026-07-27
+
+Like v0.10.0, this release is based on Go 1.26's gofmt, and requires Go 1.25 or later.
+
+The multi-line function call rule introduced in v0.10.0 proved controversial,
+so it is now the extra rule `balance_calls`, disabled by default.
+It is also narrowed to only place the closing parenthesis on its own line
+when the opening parenthesis ends a line. See #74.
+
+Avoid crashing when compiled with tinygo for Wasm, which lacks recover support,
+by detecting commented-out code without the parser's bailout panic. See #230.
+
+Produce stable output in a single pass when a lone var declaration is adjacent
+to a single-element var group, which previously required a second run. See #355.
+
+Keep the parentheses around an expression which begins with a composite literal
+of the form `T{...}`, such as `(s{}.Foo())`, as they are required when the
+expression starts an `if`, `for`, or `switch` clause. See #356.
+
 ## [v0.10.0] - 2026-05-04
 
 This release is based on Go 1.26's gofmt, and requires Go 1.25 or later.
@@ -210,6 +229,7 @@ those building programs with gofumpt.
 Finally, this release adds the `-version` flag, to print the tool's own version.
 The flag will work for "master" builds too.
 
+[v0.11.0]: https://github.com/mvdan/gofumpt/releases/tag/v0.11.0
 [v0.10.0]: https://github.com/mvdan/gofumpt/releases/tag/v0.10.0
 [v0.9.0]: https://github.com/mvdan/gofumpt/releases/tag/v0.9.0
 [v0.8.0]: https://github.com/mvdan/gofumpt/releases/tag/v0.8.0
