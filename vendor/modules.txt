@@ -147,8 +147,8 @@ github.com/lucasb-eyer/go-colorful
 # github.com/mattn/go-colorable v0.1.15
 ## explicit; go 1.18
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.22
-## explicit; go 1.21
+# github.com/mattn/go-isatty v0.0.24
+## explicit; go 1.20
 github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.19
 ## explicit; go 1.20
@@ -332,7 +332,7 @@ golang.org/x/tools/internal/versions
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
-# modernc.org/libc v1.74.1
+# modernc.org/libc v1.74.4
 ## explicit; go 1.25.0
 modernc.org/libc
 modernc.org/libc/errno
@@ -366,7 +366,7 @@ modernc.org/mathutil
 # modernc.org/memory v1.11.0
 ## explicit; go 1.23.0
 modernc.org/memory
-# modernc.org/sqlite v1.55.0
+# modernc.org/sqlite v1.56.0
 ## explicit; go 1.25.0
 modernc.org/sqlite
 modernc.org/sqlite/lib
