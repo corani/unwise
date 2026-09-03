@@ -1,7 +1,7 @@
-# charm.land/lipgloss/v2 v2.0.1
+# charm.land/lipgloss/v2 v2.0.5
 ## explicit; go 1.25.0
 charm.land/lipgloss/v2
-# charm.land/log/v2 v2.0.0
+# charm.land/log/v2 v2.0.1
 ## explicit; go 1.25.8
 charm.land/log/v2
 # github.com/DATA-DOG/go-sqlmock v1.5.2
@@ -19,13 +19,13 @@ github.com/brunoga/deep/internal/unsafe
 # github.com/caarlos0/env/v11 v11.4.1
 ## explicit; go 1.18
 github.com/caarlos0/env/v11
-# github.com/charmbracelet/colorprofile v0.4.2
-## explicit; go 1.24.2
+# github.com/charmbracelet/colorprofile v0.4.3
+## explicit; go 1.25.0
 github.com/charmbracelet/colorprofile
 # github.com/charmbracelet/ultraviolet v0.0.0-20251205161215-1948445e3318
 ## explicit; go 1.24.2
 github.com/charmbracelet/ultraviolet
-# github.com/charmbracelet/x/ansi v0.11.6
+# github.com/charmbracelet/x/ansi v0.11.7
 ## explicit; go 1.24.2
 github.com/charmbracelet/x/ansi
 github.com/charmbracelet/x/ansi/kitty
@@ -55,8 +55,8 @@ github.com/fatih/structs
 ## explicit; go 1.17
 github.com/fsnotify/fsnotify
 github.com/fsnotify/fsnotify/internal
-# github.com/go-logfmt/logfmt v0.6.0
-## explicit; go 1.17
+# github.com/go-logfmt/logfmt v0.6.1
+## explicit; go 1.21
 github.com/go-logfmt/logfmt
 # github.com/go-viper/mapstructure/v2 v2.5.0
 ## explicit; go 1.18
@@ -144,7 +144,7 @@ github.com/knadh/koanf/providers/structs
 # github.com/knadh/koanf/v2 v2.3.2
 ## explicit; go 1.23.0
 github.com/knadh/koanf/v2
-# github.com/lucasb-eyer/go-colorful v1.3.0
+# github.com/lucasb-eyer/go-colorful v1.4.0
 ## explicit; go 1.12
 github.com/lucasb-eyer/go-colorful
 # github.com/mattn/go-colorable v0.1.15
@@ -153,7 +153,7 @@ github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.24
 ## explicit; go 1.20
 github.com/mattn/go-isatty
-# github.com/mattn/go-runewidth v0.0.19
+# github.com/mattn/go-runewidth v0.0.23
 ## explicit; go 1.20
 github.com/mattn/go-runewidth
 # github.com/mitchellh/copystructure v1.2.0
