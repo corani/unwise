@@ -254,7 +254,7 @@ golang.org/x/exp/slices
 golang.org/x/exp/slog
 golang.org/x/exp/slog/internal
 golang.org/x/exp/slog/internal/buffer
-# golang.org/x/mod v0.39.0
+# golang.org/x/mod v0.40.0
 ## explicit; go 1.25.0
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
@@ -375,8 +375,8 @@ modernc.org/memory
 modernc.org/sqlite
 modernc.org/sqlite/lib
 modernc.org/sqlite/vtab
-# mvdan.cc/gofumpt v0.11.0
-## explicit; go 1.25.0
+# mvdan.cc/gofumpt v0.12.0
+## explicit; go 1.26.0
 mvdan.cc/gofumpt
 mvdan.cc/gofumpt/format
 mvdan.cc/gofumpt/internal/govendor/diff
