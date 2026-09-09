@@ -361,7 +361,11 @@ func (c *RootConfig) Initialize(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("getting package config: %w", err)
 			}
-			if recursivePkgConfig.Config.ShouldExcludeSubpkg(subpkg) {
+			excluded, err := recursivePkgConfig.Config.ShouldExcludeSubpkg(subpkg)
+			if err != nil {
+				return err
+			}
+			if excluded {
 				pkgLog.Debug().Msg("package was marked for exclusion")
 				continue
 			}
@@ -622,6 +626,7 @@ type Config struct {
 	Anchors               map[string]any `koanf:"_anchors" yaml:"_anchors,omitempty"`
 	BuildTags             *string        `koanf:"build-tags" yaml:"build-tags,omitempty"`
 	ConfigFile            *string        `koanf:"config" yaml:"config,omitempty"`
+	Cpuprofile            *string        `koanf:"cpuprofile" yaml:"cpuprofile,omitempty"`
 	Dir                   *string        `koanf:"dir" yaml:"dir,omitempty"`
 	ExcludeSubpkgRegex    []string       `koanf:"exclude-subpkg-regex" yaml:"exclude-subpkg-regex,omitempty"`
 	ExcludeInterfaceRegex *string        `koanf:"exclude-interface-regex" yaml:"exclude-interface-regex,omitempty"`
@@ -667,17 +672,21 @@ func (c *Config) FilePath() string {
 	return filepath.ToSlash(filepath.Clean(filepath.Join(*c.Dir, *c.FileName)))
 }
 
-func (c *Config) ShouldExcludeSubpkg(pkgPath string) bool {
+// ShouldExcludeSubpkg reports whether pkgPath matches any of the
+// `exclude-subpkg-regex` patterns. An unparsable pattern is returned as an
+// error so it surfaces as a configuration failure, the same way
+// `include-interface-regex` and `exclude-interface-regex` do.
+func (c *Config) ShouldExcludeSubpkg(pkgPath string) (bool, error) {
 	for _, regex := range c.ExcludeSubpkgRegex {
 		matched, err := regexp.MatchString(regex, pkgPath)
 		if err != nil {
-			panic(err)
+			return false, fmt.Errorf("evaluating `exclude-subpkg-regex`: %w", err)
 		}
 		if matched {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 var ErrInfiniteLoop = fmt.Errorf("infinite loop in template variables detected")
