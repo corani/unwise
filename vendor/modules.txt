@@ -214,8 +214,8 @@ github.com/valyala/fasthttp/prefork
 github.com/valyala/fasthttp/reuseport
 github.com/valyala/fasthttp/stackless
 github.com/valyala/fasthttp/tcplisten
-# github.com/vektra/mockery/v3 v3.8.0
-## explicit; go 1.25.5
+# github.com/vektra/mockery/v3 v3.8.1
+## explicit; go 1.26.0
 github.com/vektra/mockery/v3
 github.com/vektra/mockery/v3/config
 github.com/vektra/mockery/v3/internal
