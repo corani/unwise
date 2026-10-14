@@ -6,7 +6,7 @@ require (
 	charm.land/log/v2 v2.0.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/caarlos0/env/v11 v11.4.1
-	github.com/gofiber/fiber/v3 v3.6.0
+	github.com/gofiber/fiber/v3 v3.6.1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.12.1
@@ -36,11 +36,11 @@ require (
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/gofiber/schema v1.8.8 // indirect
-	github.com/gofiber/utils/v2 v2.6.1 // indirect
+	github.com/gofiber/utils/v2 v2.6.2 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jedib0t/go-pretty/v6 v6.7.8 // indirect
-	github.com/klauspost/compress v1.20.1 // indirect
+	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect
 	github.com/knadh/koanf/parsers/yaml v1.1.0 // indirect
 	github.com/knadh/koanf/providers/env v1.1.0 // indirect
@@ -54,7 +54,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/molecule-man/go-brrr v1.2.0 // indirect
+	github.com/molecule-man/go-brrr v1.3.0 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
