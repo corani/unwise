@@ -90,6 +90,7 @@ func NewDefaultKoanf(ctx context.Context) (*koanf.Koanf, error) {
 		StructName:                  addr("{{.Mock}}{{.InterfaceName}}"),
 		PkgName:                     addr("{{.SrcPackageName}}"),
 		Recursive:                   addr(false),
+		ResolveInternalAliases:      addr(false),
 		RequireTemplateSchemaExists: addr(true),
 		Template:                    addr("testify"),
 		TemplateData:                map[string]any{},
@@ -266,6 +267,23 @@ func mergeStringMaps(src, dest map[string]any) {
 	}
 }
 
+// mergeReplaceTypes merges the replace-type entries in src into dest. Entries
+// already present in dest take precedence over those in src.
+func mergeReplaceTypes(src, dest map[string]map[string]*ReplaceType) {
+	for pkgPath, srcTypes := range src {
+		destTypes, ok := dest[pkgPath]
+		if !ok {
+			destTypes = make(map[string]*ReplaceType, len(srcTypes))
+			dest[pkgPath] = destTypes
+		}
+		for typeName, replacement := range srcTypes {
+			if _, exists := destTypes[typeName]; !exists {
+				destTypes[typeName] = replacement
+			}
+		}
+	}
+}
+
 // mergeConfigs merges the values from c1 into c2.
 func mergeConfigs(ctx context.Context, src Config, dest *Config) {
 	log := zerolog.Ctx(ctx)
@@ -282,7 +300,17 @@ func mergeConfigs(ctx context.Context, src Config, dest *Config) {
 		srcFieldValue := srcValue.Field(i)
 		destFieldValue := destValue.Elem().Field(i)
 
-		if srcFieldValue.Kind() == reflect.Map {
+		if srcReplaceTypes, ok := srcFieldValue.Interface().(map[string]map[string]*ReplaceType); ok {
+			// replace-type isn't a map[string]any, so it needs its own merge.
+			// Without this it would never be inherited from the root or
+			// package config.
+			destReplaceTypes, _ := destFieldValue.Interface().(map[string]map[string]*ReplaceType)
+			if destReplaceTypes == nil {
+				destReplaceTypes = make(map[string]map[string]*ReplaceType, len(srcReplaceTypes))
+				destFieldValue.Set(reflect.ValueOf(destReplaceTypes))
+			}
+			mergeReplaceTypes(srcReplaceTypes, destReplaceTypes)
+		} else if srcFieldValue.Kind() == reflect.Map {
 			srcMap, ok := srcFieldValue.Interface().(map[string]any)
 			if !ok {
 				log.Debug().Msg("field value is not `any`, skipping merge")
@@ -336,6 +364,18 @@ func (c *RootConfig) Initialize(ctx context.Context) error {
 		}
 		pkgLog := log.With().Str("package-path", pkgName).Logger()
 		pkgCtx := pkgLog.WithContext(ctx)
+
+		// resolve-internal-aliases is only read from the root config, so say so
+		// rather than silently ignoring it below the root.
+		if pkgConfig.Config.ResolveInternalAliases != nil {
+			pkgLog.Warn().Msg("`resolve-internal-aliases` is a root-level setting and is ignored at the package level")
+		}
+		for ifaceName, ifaceConfig := range pkgConfig.Interfaces {
+			if ifaceConfig != nil && ifaceConfig.Config != nil && ifaceConfig.Config.ResolveInternalAliases != nil {
+				pkgLog.Warn().Str("interface", ifaceName).
+					Msg("`resolve-internal-aliases` is a root-level setting and is ignored at the interface level")
+			}
+		}
 
 		mergeConfigs(pkgCtx, c.Config, pkgConfig.Config)
 		if err := pkgConfig.Initialize(pkgCtx); err != nil {
@@ -508,11 +548,12 @@ func (c PackageConfig) ShouldGenerateInterface(
 	hasDirectiveComment bool,
 ) (bool, error) {
 	log := zerolog.Ctx(ctx)
+	// An explicit `generate: false` always wins, including over `all: true`.
+	if ifaceConfig.Generate != nil && !*ifaceConfig.Generate {
+		log.Debug().Msg("generate: false is set, skipping generation")
+		return false, nil
+	}
 	if hasDirectiveComment {
-		if ifaceConfig.Generate != nil && !*ifaceConfig.Generate {
-			log.Debug().Msg("interface has directive comment with generate: false, skipping generation")
-			return false, nil
-		}
 		log.Debug().Msg("interface has directive comment, generating mock")
 		return true, nil
 	}
@@ -640,11 +681,16 @@ type Config struct {
 	IncludeInterfaceRegex *string           `koanf:"include-interface-regex" yaml:"include-interface-regex,omitempty"`
 	InPackage             *bool             `koanf:"inpackage" yaml:"inpackage,omitempty"`
 	LogLevel              *string           `koanf:"log-level" yaml:"log-level,omitempty"`
+	Memprofile            *string           `koanf:"memprofile" yaml:"memprofile,omitempty"`
 	StructName            *string           `koanf:"structname" yaml:"structname,omitempty"`
 	PkgName               *string           `koanf:"pkgname" yaml:"pkgname,omitempty"`
 	Recursive             *bool             `koanf:"recursive" yaml:"recursive,omitempty"`
 	// ReplaceType is a nested map of format map["package path"]["type name"]*ReplaceType
 	ReplaceType map[string]map[string]*ReplaceType `koanf:"replace-type" yaml:"replace-type,omitempty"`
+	// ResolveInternalAliases renders public aliases (`type X = internal.X`) in
+	// place of the internal types they point at, so generated mocks do not
+	// import packages that can't be imported from outside their module.
+	ResolveInternalAliases *bool `koanf:"resolve-internal-aliases" yaml:"resolve-internal-aliases,omitempty"`
 	// RequireTemplateSchemaExists sets whether mockery will fail if the specified
 	// template did not have an associated JSON schema.
 	RequireTemplateSchemaExists *bool          `koanf:"require-template-schema-exists" yaml:"require-template-schema-exists,omitempty"`
