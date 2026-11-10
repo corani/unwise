@@ -2,6 +2,7 @@ package fasthttp
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -23,6 +24,13 @@ var errNoCertOrKeyProvided = errors.New("cert or key has not provided")
 //
 // Deprecated: ErrAlreadyServing is never returned from Serve. See issue #633.
 var ErrAlreadyServing = errors.New("fasthttp: server is already serving connections")
+
+// ErrNilConnection is returned when attempting to set deadlines on a nil connection.
+var ErrNilConnection = errors.New("fasthttp: nil connection")
+
+// ErrDeadlineUpdatesDisabled is returned when attempting to set deadlines on a RequestCtx
+// whose deadline updates have been disabled (such as a timed-out handler's context).
+var ErrDeadlineUpdatesDisabled = errors.New("fasthttp: deadline updates disabled")
 
 // ServeConn serves HTTP requests from the given connection
 // using the given handler.
@@ -669,9 +677,14 @@ type RequestCtx struct {
 	// Copying Request by value is forbidden. Use pointer to Request instead.
 	Request Request
 
-	connID           uint64
-	connRequestNum   uint64
-	hijackNoResponse bool
+	connID                  uint64
+	connRequestNum          uint64
+	hijackNoResponse        bool
+	deadlineMu              sync.Mutex
+	deadlineUpdatesDisabled atomic.Bool
+	handlerDeadlineSet      atomic.Bool
+	handlerReadDeadlineSet  bool
+	handlerWriteDeadlineSet atomic.Bool
 }
 
 // EarlyHints allows the server to hint to the browser what resources a page would need
@@ -681,6 +694,9 @@ type RequestCtx struct {
 // This is a HTTP/2+ feature but all browsers will either understand it or safely ignore it.
 //
 // NOTE: Older HTTP/1.1 non-browser clients may face compatibility issues.
+//
+// EarlyHints does nothing for HTTP/1.0 requests, since a server must not send
+// a 1xx response to an HTTP/1.0 client (RFC 9110, section 15.2).
 //
 // See: https://developer.chrome.com/docs/web-platform/early-hints and
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Link#syntax
@@ -695,6 +711,9 @@ type RequestCtx struct {
 //	   ctx.SetBody([]byte("<html><head></head><body><h1>Hello from Fasthttp</h1></body></html>"))
 //	}
 func (ctx *RequestCtx) EarlyHints() error {
+	if !ctx.Request.Header.IsHTTP11() {
+		return nil
+	}
 	links := ctx.Response.Header.PeekAll(b2s(strLink))
 	if len(links) > 0 {
 		c := acquireWriter(ctx)
@@ -758,10 +777,18 @@ type HijackHandler func(c net.Conn)
 // to the handler. The connection is automatically closed after
 // returning from the handler.
 //
-// The server skips calling the handler in the following cases:
+// The server skips calling the handler when the response is sent and one
+// of the following holds:
 //
-//   - 'Connection: close' header exists in either request or response.
-//   - Unexpected error during response writing to the connection.
+//   - The request or the response asks to close the connection: a
+//     'Connection: close' header, or an HTTP/1.0 request without keep-alive.
+//   - The server is shutting down and CloseOnShutdown is set.
+//   - A streamed request body failed before the response was written.
+//   - Writing the response failed.
+//
+// With HijackSetNoResponse(true) none of these apply. DisableKeepalive and
+// MaxRequestsPerConn do not prevent the hijack, since the connection serves
+// no further requests either way.
 //
 // The server stops processing requests from hijacked connections.
 //
@@ -919,7 +946,54 @@ func (ctx *RequestCtx) Conn() net.Conn {
 	return ctx.c
 }
 
+// SetReadDeadline sets the read deadline on the underlying connection.
+func (ctx *RequestCtx) SetReadDeadline(deadline time.Time) error {
+	ctx.deadlineMu.Lock()
+	defer ctx.deadlineMu.Unlock()
+	if ctx.c == nil {
+		return ErrNilConnection
+	}
+	if ctx.deadlineUpdatesDisabled.Load() {
+		return ErrDeadlineUpdatesDisabled
+	}
+	err := ctx.c.SetReadDeadline(deadline)
+	if err == nil {
+		ctx.handlerReadDeadlineSet = true
+		ctx.handlerDeadlineSet.Store(true)
+	}
+	return err
+}
+
+// SetWriteDeadline sets the write deadline on the underlying connection.
+func (ctx *RequestCtx) SetWriteDeadline(deadline time.Time) error {
+	ctx.deadlineMu.Lock()
+	defer ctx.deadlineMu.Unlock()
+	if ctx.c == nil {
+		return ErrNilConnection
+	}
+	if ctx.deadlineUpdatesDisabled.Load() {
+		return ErrDeadlineUpdatesDisabled
+	}
+	err := ctx.c.SetWriteDeadline(deadline)
+	if err == nil {
+		ctx.handlerWriteDeadlineSet.Store(true)
+		ctx.handlerDeadlineSet.Store(true)
+	}
+	return err
+}
+
 func (ctx *RequestCtx) reset() {
+	if ctx.s != nil {
+		keepBodyBuffer := !ctx.s.ReduceMemoryUsage
+		ctx.Request.keepBodyBuffer = keepBodyBuffer
+		ctx.Response.keepBodyBuffer = keepBodyBuffer
+	} else {
+		ctx.Request.keepBodyBuffer = false
+		ctx.Response.keepBodyBuffer = false
+	}
+	ctx.Request.KeepBodyBuffer = false
+	ctx.Response.KeepBodyBuffer = false
+
 	ctx.Request.Reset()
 	ctx.Response.Reset()
 	ctx.fbr.reset()
@@ -929,7 +1003,13 @@ func (ctx *RequestCtx) reset() {
 	ctx.connTime = zeroTime
 	ctx.remoteAddr = nil
 	ctx.time = zeroTime
+	ctx.deadlineMu.Lock()
 	ctx.c = nil
+	ctx.deadlineUpdatesDisabled.Store(false)
+	ctx.handlerDeadlineSet.Store(false)
+	ctx.handlerReadDeadlineSet = false
+	ctx.handlerWriteDeadlineSet.Store(false)
+	ctx.deadlineMu.Unlock()
 
 	// Don't reset ctx.s!
 	// We have a pool per server so the next time this ctx is used it
@@ -1480,12 +1560,20 @@ func (ctx *RequestCtx) SuccessString(contentType, body string) {
 //
 // The redirect uri may be either absolute or relative to the current
 // request uri. Fasthttp will always send an absolute uri back to the client.
+// A uri with a scheme but no authority, such as mailto:user@example.com
+// or com.example.app:/callback, is sent as is.
 // To send a relative uri you can use the following code:
 //
 //	strLocation = []byte("Location") // Put this with your top level var () declarations.
 //	ctx.Response.Header.SetCanonical(strLocation, "/relative?uri")
 //	ctx.Response.SetStatusCode(fasthttp.StatusMovedPermanently)
 func (ctx *RequestCtx) Redirect(uri string, statusCode int) {
+	if hasSchemeWithoutAuthority(uri) {
+		// URI can only hold scheme://host/path, so resolving this
+		// against the request uri would turn it into a relative path.
+		ctx.redirect(s2b(uri), statusCode)
+		return
+	}
 	u := AcquireURI()
 	ctx.URI().CopyTo(u)
 	u.Update(uri)
@@ -1516,6 +1604,16 @@ func (ctx *RequestCtx) Redirect(uri string, statusCode int) {
 func (ctx *RequestCtx) RedirectBytes(uri []byte, statusCode int) {
 	s := b2s(uri)
 	ctx.Redirect(s, statusCode)
+}
+
+// hasSchemeWithoutAuthority reports whether uri starts with a valid scheme
+// that isn't followed by "//", e.g. mailto:user@example.com.
+func hasSchemeWithoutAuthority(uri string) bool {
+	n := strings.IndexByte(uri, ':')
+	if n <= 0 || !isValidScheme(s2b(uri[:n])) {
+		return false
+	}
+	return !strings.HasPrefix(uri[n+1:], "//")
 }
 
 func (ctx *RequestCtx) redirect(uri []byte, statusCode int) {
@@ -1753,6 +1851,7 @@ func (ctx *RequestCtx) TimeoutErrorWithResponse(resp *Response) {
 	respCopy := &Response{}
 	resp.CopyTo(respCopy)
 	ctx.timeoutResponse = respCopy
+	ctx.deadlineUpdatesDisabled.Store(true)
 }
 
 // NextProto adds nph to be processed when key is negotiated when TLS
@@ -2053,9 +2152,8 @@ func (s *Server) Serve(ln net.Listener) error {
 		if !wp.Serve(c) {
 			s.open.Add(-1)
 			s.rejectedRequestsCount.Add(1)
-			s.writeFastError(c, StatusServiceUnavailable,
+			s.rejectConn(c, StatusServiceUnavailable,
 				"The connection cannot be served because Server.Concurrency limit exceeded")
-			c.Close()
 			s.setState(c, StateClosed)
 			if time.Since(lastOverflowErrorTime) > time.Minute {
 				s.logger().Printf("The incoming connection cannot be served, because %d concurrent connections are served. "+
@@ -2189,7 +2287,7 @@ func acceptConn(s *Server, ln net.Listener, lastPerIPErrorTime *time.Time) (net.
 			if pic == nil {
 				if time.Since(*lastPerIPErrorTime) > time.Minute {
 					s.logger().Printf("The number of connections from %s exceeds MaxConnsPerIP=%d",
-						getConnIP4(c), s.MaxConnsPerIP)
+						getConnIP(c), s.MaxConnsPerIP)
 					*lastPerIPErrorTime = time.Now()
 				}
 				continue
@@ -2201,18 +2299,31 @@ func acceptConn(s *Server, ln net.Listener, lastPerIPErrorTime *time.Time) (net.
 }
 
 func wrapPerIPConn(s *Server, c net.Conn) net.Conn {
-	ip := getUint32IP(c)
-	if ip == 0 {
+	ip, ok := getPerIPKey(c)
+	if !ok {
 		return c
 	}
 	n := s.perIPConnCounter.Register(ip)
 	if n > s.MaxConnsPerIP {
 		s.perIPConnCounter.Unregister(ip)
-		s.writeFastError(c, StatusTooManyRequests, "The number of connections from your ip exceeds MaxConnsPerIP")
-		c.Close()
+		s.rejectConn(c, StatusTooManyRequests, "The number of connections from your ip exceeds MaxConnsPerIP")
 		return nil
 	}
 	return newPerIPConn(c, ip, &s.perIPConnCounter)
+}
+
+func (s *Server) rejectConn(c net.Conn, statusCode int, msg string) {
+	conn := c
+	if pic, ok := conn.(*perIPConn); ok {
+		conn = pic.Conn
+	}
+	// A rejected TLS connection may not have completed its handshake. Writing
+	// an HTTP response would wait for the client's ClientHello, potentially
+	// blocking the accept loop or the ServeConn caller indefinitely.
+	if _, isTLS := conn.(tlsConn); !isTLS {
+		s.writeFastError(c, statusCode, msg)
+	}
+	c.Close()
 }
 
 var defaultLogger = Logger(log.New(os.Stderr, "", log.LstdFlags))
@@ -2254,8 +2365,7 @@ func (s *Server) ServeConn(c net.Conn) error {
 	}
 
 	if !s.tryAcquireConcurrency() {
-		s.writeFastError(c, StatusServiceUnavailable, "The connection cannot be served because Server.Concurrency limit exceeded")
-		c.Close()
+		s.rejectConn(c, StatusServiceUnavailable, "The connection cannot be served because Server.Concurrency limit exceeded")
 		return ErrConcurrencyLimit
 	}
 	defer s.releaseConcurrency()
@@ -2508,7 +2618,11 @@ func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
 		ctx.Response.secureErrorLogMessage = s.SecureErrorLogMessage
 
 		if err == nil {
-			idleConnTime.Store(0)
+			if idleConnTime.Swap(0) == idleConnClaimedByShutdown {
+				// Shutdown claimed this idle connection and is closing it, so the
+				// request that just arrived can't be answered: drop it silently.
+				break
+			}
 			s.setState(c, StateActive)
 
 			// ReadTimeout restarts at the first byte after an idle wait or a
@@ -2693,7 +2807,7 @@ func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
 
 		// store req.ConnectionClose so even if it was changed inside of handler.
 		// Preserve connectionClose if already set (e.g., by ExpectHandler).
-		connectionClose = connectionClose || s.DisableKeepalive || ctx.Request.Header.ConnectionClose()
+		connectionClose = connectionClose || ctx.Request.Header.ConnectionClose()
 
 		// Remember the request version before ctx may be replaced with a
 		// fresh one below, whose request defaults to HTTP/1.1.
@@ -2742,11 +2856,24 @@ func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
 				br = nil
 			}
 			reqStream = nil
+			oldCtx := ctx
 			// Acquire a new ctx because the old one will still be in use by the timeout out handler.
 			ctx = s.acquireCtx(c)
 			ctx.connTime = connTime
 			ctx.time = reqTime
 			timeoutResponse.CopyTo(&ctx.Response)
+
+			oldCtx.deadlineUpdatesDisabled.Store(true)
+			oldCtx.deadlineMu.Lock()
+			if oldCtx.handlerReadDeadlineSet {
+				ctx.handlerReadDeadlineSet = true
+				ctx.handlerDeadlineSet.Store(true)
+			}
+			if oldCtx.handlerWriteDeadlineSet.Load() {
+				ctx.handlerWriteDeadlineSet.Store(true)
+				ctx.handlerDeadlineSet.Store(true)
+			}
+			oldCtx.deadlineMu.Unlock()
 		}
 
 		if ctx.IsHead() {
@@ -2758,23 +2885,37 @@ func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
 		hijackNoResponse = ctx.hijackNoResponse && hijackHandler != nil
 		ctx.hijackNoResponse = false
 
-		if writeTimeout > 0 {
-			if err = c.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
+		if writeTimeout > 0 || previousWriteTimeout > 0 {
+			ctx.deadlineMu.Lock()
+			switch {
+			case ctx.handlerWriteDeadlineSet.Load():
+				previousWriteTimeout = 0
+			case writeTimeout > 0:
+				if err = c.SetWriteDeadline(time.Now().Add(writeTimeout)); err == nil {
+					previousWriteTimeout = writeTimeout
+				}
+			case previousWriteTimeout > 0:
+				// We don't want a write timeout but we previously set one, remove it.
+				if err = c.SetWriteDeadline(zeroTime); err == nil {
+					previousWriteTimeout = 0
+				}
+			}
+			ctx.deadlineMu.Unlock()
+			if err != nil {
 				break
 			}
-			previousWriteTimeout = writeTimeout
-		} else if previousWriteTimeout > 0 {
-			// We don't want a write timeout but we previously set one, remove it.
-			if err = c.SetWriteDeadline(zeroTime); err != nil {
-				break
-			}
-			previousWriteTimeout = 0
 		}
 
 		connectionClose = connectionClose ||
-			(s.MaxRequestsPerConn > 0 && connRequestNum >= uint64(s.MaxRequestsPerConn)) || // #nosec G115
 			ctx.Response.Header.ConnectionClose() ||
+			(reqStream != nil && reqStream.failed) ||
 			(s.CloseOnShutdown && s.stop.Load() == 1)
+		// DisableKeepalive and MaxRequestsPerConn end the connection's use for
+		// requests, which a hijack does as well, so they do not skip it.
+		if hijackHandler == nil {
+			connectionClose = connectionClose || s.DisableKeepalive ||
+				(s.MaxRequestsPerConn > 0 && connRequestNum >= uint64(s.MaxRequestsPerConn)) // #nosec G115
+		}
 
 		// If no response stream can consume the request body, a known-length
 		// body over the drain limit means the connection must close. Decide
@@ -2819,7 +2960,13 @@ func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
 			// consumed body can still batch pipelined responses in the writer.
 			unreadStreamBody := reqStream != nil && !reqStream.eof &&
 				(reqStream.contentLength == -1 || reqStream.totalBytesRead < reqStream.contentLength)
-			if unreadStreamBody || br == nil || br.Buffered() == 0 || connectionClose || (s.ReduceMemoryUsage && hijackHandler == nil) {
+			// Only flush the writer if we don't have another request in the pipeline.
+			// This is a big of an ugly optimization for https://www.techempower.com/benchmarks/
+			// This benchmark will send 16 pipelined requests. It is faster to pack as many responses
+			// in a TCP packet and send it back at once than waiting for a flush every request.
+			// In real world circumstances this behaviour could be argued as being wrong.
+			if unreadStreamBody || br == nil || br.Buffered() == 0 || connectionClose ||
+				ctx.handlerWriteDeadlineSet.Load() || (s.ReduceMemoryUsage && hijackHandler == nil) {
 				err = bw.Flush()
 				if err != nil {
 					break
@@ -2878,13 +3025,56 @@ func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
 		ctx.Request.bodyStream = nil
 		ctx.Request.serverStream = nil
 
-		idleConnTime.Store(reqSecond)
+		if ctx.handlerDeadlineSet.Load() {
+			ctx.deadlineMu.Lock()
+			if ctx.handlerReadDeadlineSet {
+				if err = c.SetReadDeadline(zeroTime); err != nil {
+					ctx.deadlineMu.Unlock()
+					break
+				}
+				ctx.handlerReadDeadlineSet = false
+			}
+			if ctx.handlerWriteDeadlineSet.Load() {
+				if bw != nil && bw.Buffered() > 0 {
+					if err = bw.Flush(); err != nil {
+						ctx.deadlineMu.Unlock()
+						break
+					}
+				}
+				if err = c.SetWriteDeadline(zeroTime); err != nil {
+					ctx.deadlineMu.Unlock()
+					break
+				}
+				ctx.handlerWriteDeadlineSet.Store(false)
+				previousWriteTimeout = 0
+			}
+			ctx.handlerDeadlineSet.Store(false)
+			ctx.deadlineMu.Unlock()
+		}
+
+		// A response held back for the next pipelined request hasn't been sent,
+		// so Shutdown's sweep must not treat the connection as idle.
+		if bw == nil || bw.Buffered() == 0 {
+			idleConnTime.Store(reqSecond)
+		}
 		s.setState(c, StateIdle)
+		ctx.Request.KeepBodyBuffer = false
+		ctx.Response.KeepBodyBuffer = false
 		ctx.Request.Reset()
 		ctx.Response.Reset()
+		if ctx.s != nil {
+			keepBodyBuffer := !ctx.s.ReduceMemoryUsage
+			ctx.Request.keepBodyBuffer = keepBodyBuffer
+			ctx.Response.keepBodyBuffer = keepBodyBuffer
+		}
 
 		if s.stop.Load() == 1 {
 			err = nil
+			// The loop won't serve the next pipelined request, so send the
+			// response held back for it.
+			if bw != nil && bw.Buffered() > 0 {
+				err = bw.Flush()
+			}
 			break
 		}
 	}
@@ -2923,6 +3113,12 @@ func (s *Server) setState(nc net.Conn, state ConnState) {
 }
 
 func hijackConnHandler(ctx *RequestCtx, r io.Reader, c net.Conn, s *Server, h HijackHandler) {
+	if br, ok := r.(*bufio.Reader); ok && s.KeepHijackedConns && s.ReduceMemoryUsage {
+		// With ReduceMemoryUsage the reader reads through ctx.fbr, which is
+		// reset with ctx below and reused for other connections. Have it read
+		// the connection itself; a request stream sharing it keeps working.
+		detachReader(br, c)
+	}
 	hjc := s.acquireHijackConn(r, c)
 	h(hjc)
 
@@ -2936,6 +3132,19 @@ func hijackConnHandler(ctx *RequestCtx, r io.Reader, c net.Conn, s *Server, h Hi
 		s.releaseHijackConn(hjc)
 	}
 	s.releaseCtx(ctx)
+}
+
+// detachReader makes br read c directly, keeping its buffered bytes. An error
+// br holds besides them, which only an unusual connection reports together
+// with data, is dropped.
+func detachReader(br *bufio.Reader, c net.Conn) {
+	n := br.Buffered()
+	if n == 0 {
+		br.Reset(c)
+		return
+	}
+	b, _ := br.Peek(n)
+	br.Reset(io.MultiReader(bytes.NewReader(bytes.Clone(b)), c))
 }
 
 func (s *Server) acquireHijackConn(r io.Reader, c net.Conn) *hijackConn {
@@ -3080,15 +3289,16 @@ func releaseWriter(s *Server, w *bufio.Writer) {
 func (s *Server) acquireCtx(c net.Conn) (ctx *RequestCtx) {
 	v := s.ctxPool.Get()
 	if v == nil {
-		keepBodyBuffer := !s.ReduceMemoryUsage
-
 		ctx = new(RequestCtx)
-		ctx.Request.keepBodyBuffer = keepBodyBuffer
-		ctx.Response.keepBodyBuffer = keepBodyBuffer
 		ctx.s = s
 	} else {
 		ctx = v.(*RequestCtx) //nolint:forcetypeassert
 	}
+	keepBodyBuffer := !s.ReduceMemoryUsage
+	ctx.Request.keepBodyBuffer = keepBodyBuffer
+	ctx.Response.keepBodyBuffer = keepBodyBuffer
+	ctx.Request.KeepBodyBuffer = false
+	ctx.Response.KeepBodyBuffer = false
 	if s.FormValueFunc != nil {
 		ctx.formValueFunc = s.FormValueFunc
 	}
@@ -3117,6 +3327,8 @@ func (ctx *RequestCtx) Init2(conn net.Conn, logger Logger, reduceMemoryUsage boo
 	keepBodyBuffer := !reduceMemoryUsage
 	ctx.Request.keepBodyBuffer = keepBodyBuffer
 	ctx.Response.keepBodyBuffer = keepBodyBuffer
+	ctx.Request.KeepBodyBuffer = false
+	ctx.Response.KeepBodyBuffer = false
 }
 
 // Init prepares ctx for passing to RequestHandler.
@@ -3331,12 +3543,18 @@ func (s *Server) writeErrorResponse(bw *bufio.Writer, ctx *RequestCtx, serverNam
 
 var idleConnTimePool sync.Pool
 
+// idleConnClaimedByShutdown is the idle timestamp closeIdleConns swaps in
+// for a connection it closes.
+const idleConnClaimedByShutdown = -1
+
 func (s *Server) closeIdleConns() {
 	s.idleConnsMu.Lock()
 	now := time.Now().Unix()
 	for c, ict := range s.idleConns {
 		t := ict.Load()
-		if t != 0 && now-t >= 0 {
+		// Claim the connection before closing it: serveConn claims it by
+		// swapping in 0 when a request arrives, and the first claim wins.
+		if t != 0 && now-t >= 0 && ict.CompareAndSwap(t, idleConnClaimedByShutdown) {
 			_ = c.Close()
 			// Don't recycle ict: the connection's own goroutine still holds it
 			// and stores into it, so only that goroutine may return it.

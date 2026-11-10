@@ -41,6 +41,8 @@ type Encoder struct {
 	// the plan if it changed, so a build racing a reconfiguration cannot
 	// re-insert a stale plan after the clear.
 	encGen atomic.Uint64
+	// encSlots is a direct-mapped cache in front of encCache, indexed like cache.slots.
+	encSlots [typeCacheSlots]atomic.Pointer[encPlan]
 }
 
 // encPlan tags a per-type encoding plan with the configuration generation it
@@ -48,8 +50,11 @@ type Encoder struct {
 // any Encode starting after a reconfiguration returns observes the new
 // configuration even if a racing build stored a stale plan after the clear.
 type encPlan struct {
+	typ    reflect.Type
 	fields []encField
 	gen    uint64
+	// scratch is how many values encode can put in its shared scratch array.
+	scratch int
 	// freshKeys reports that encoding a value of this type into an empty map
 	// writes every key exactly once: no two fields share a name, and no field
 	// is recursed into — a nested struct's keys land in the same map, without
@@ -97,7 +102,7 @@ func NewEncoder() *Encoder {
 // Encode encodes a struct into map[string][]string.
 //
 // Intended for use with url.Values.
-func (e *Encoder) Encode(src interface{}, dst map[string][]string) (err error) {
+func (e *Encoder) Encode(src any, dst map[string][]string) (err error) {
 	if dst == nil {
 		return errNilDst
 	}
@@ -120,12 +125,11 @@ func (e *Encoder) Encode(src interface{}, dst map[string][]string) (err error) {
 }
 
 // RegisterEncoder registers a converter for encoding a custom type.
-func (e *Encoder) RegisterEncoder(value interface{}, encoder func(reflect.Value) string) {
+func (e *Encoder) RegisterEncoder(value any, encoder func(reflect.Value) string) {
 	e.cache.l.Lock()
 	e.regenc[reflect.TypeOf(value)] = encoder
 	e.cache.l.Unlock()
-	e.encGen.Add(1)
-	e.encCache.Clear()
+	e.resetPlans()
 }
 
 // SetAliasTag changes the tag used to locate custom field aliases.
@@ -134,26 +138,39 @@ func (e *Encoder) SetAliasTag(tag string) {
 	e.cache.l.Lock()
 	e.cache.tag = tag
 	e.cache.l.Unlock()
+	e.resetPlans()
+}
+
+func (e *Encoder) resetPlans() {
 	e.encGen.Add(1)
 	e.encCache.Clear()
+	for i := range e.encSlots {
+		e.encSlots[i].Store(nil)
+	}
 }
 
 // structInfo returns the cached encoding plan for struct type t, building it
 // on first use. The build reads the tag and registered encoders under the
 // configuration lock; the generation re-checks around the cache store keep a
 // build racing a reconfiguration from inserting a stale plan.
-func (e *Encoder) structInfo(t reflect.Type) (fields []encField, freshKeys bool) { //nolint:nonamedreturns // the bool is only readable named
+func (e *Encoder) structInfo(t reflect.Type) *encPlan {
 	gen := e.encGen.Load()
+	slot := &e.encSlots[typeSlot(t)]
+	cur := slot.Load()
+	if cur != nil && cur.typ == t && cur.gen == gen {
+		return cur
+	}
 	if cached, ok := e.encCache.Load(t); ok {
 		// Ignore plans built under an older configuration; fall through and
 		// rebuild (the fresh plan overwrites the stale entry).
 		if p := cached.(*encPlan); p.gen == gen {
-			return p.fields, p.freshKeys
+			claimPlanSlot(slot, cur, p)
+			return p
 		}
 	}
 	e.cache.l.RLock()
 	tag := e.cache.tag
-	fields = make([]encField, 0, t.NumField())
+	fields := make([]encField, 0, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
 		sf := t.Field(i)
 		name, opts := fieldAlias(sf, tag)
@@ -165,7 +182,7 @@ func (e *Encoder) structInfo(t reflect.Type) (fields []encField, freshKeys bool)
 			idx:       i,
 			name:      name,
 			omitEmpty: opts.Contains("omitempty"),
-			recurseStructPtr: ft.Kind() == reflect.Ptr &&
+			recurseStructPtr: ft.Kind() == reflect.Pointer &&
 				ft.Elem().Kind() == reflect.Struct &&
 				!e.hasCustomEncoder(ft),
 			enc:         typeEncoder(ft, e.regenc),
@@ -178,25 +195,49 @@ func (e *Encoder) structInfo(t reflect.Type) (fields []encField, freshKeys bool)
 				f.isStruct = true
 			case reflect.Slice:
 				f.elemEnc = typeEncoder(ft.Elem(), e.regenc)
-				if f.elemEnc == nil && ft.Elem().Kind() == reflect.Ptr {
+				if f.elemEnc == nil && ft.Elem().Kind() == reflect.Pointer {
 					f.elemPtrNil = true
 				}
-			case reflect.Ptr:
+			case reflect.Pointer:
 				f.nilAsNull = true
 			}
 		}
 		fields = append(fields, f)
 	}
 	e.cache.l.RUnlock()
-	freshKeys = writesEachKeyOnce(fields)
+	p := &encPlan{
+		typ:       t,
+		fields:    fields,
+		gen:       gen,
+		scratch:   scratchValues(fields),
+		freshKeys: writesEachKeyOnce(fields),
+	}
 	// Don't cache a plan whose inputs (tag, registered encoders) changed
 	// while it was being built; the next call rebuilds it fresh. Even if a
 	// stale plan slips in after the clear, its generation tag keeps it from
 	// ever being served.
 	if e.encGen.Load() == gen {
-		e.encCache.Store(t, &encPlan{fields: fields, gen: gen, freshKeys: freshKeys})
+		e.encCache.Store(t, p)
+		claimPlanSlot(slot, cur, p)
 	}
-	return fields, freshKeys
+	return p
+}
+
+// claimPlanSlot keeps another type's live plan in slot, so types sharing it don't evict each other.
+func claimPlanSlot(slot *atomic.Pointer[encPlan], cur, p *encPlan) {
+	if cur == nil || cur.gen < p.gen {
+		slot.CompareAndSwap(cur, p)
+	}
+}
+
+func scratchValues(fields []encField) int {
+	n := 0
+	for i := range fields {
+		if f := &fields[i]; f.scratchSafe || f.nilAsNull {
+			n++
+		}
+	}
+	return n
 }
 
 // writesEachKeyOnce reports whether the plan's fields write distinct keys and
@@ -263,7 +304,7 @@ func isZero(v reflect.Value) bool {
 		return true
 	case reflect.Struct:
 		if v.CanInterface() {
-			if iz, ok := v.Interface().(interface{ IsZero() bool }); ok {
+			if iz, ok := reflect.TypeAssert[interface{ IsZero() bool }](v); ok {
 				return iz.IsZero()
 			}
 		}
@@ -279,7 +320,7 @@ func isZero(v reflect.Value) bool {
 }
 
 func (e *Encoder) encode(v reflect.Value, dst map[string][]string) error {
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {
@@ -288,7 +329,8 @@ func (e *Encoder) encode(v reflect.Value, dst map[string][]string) error {
 
 	var errs MultiError
 
-	fields, freshKeys := e.structInfo(v.Type())
+	plan := e.structInfo(v.Type())
+	fields := plan.fields
 	// When dst starts empty (fresh url.Values), single short package-allocated
 	// values of distinct keys share one backing array instead of allocating a
 	// 1-element slice each; the three-index slice caps entries so later
@@ -299,7 +341,7 @@ func (e *Encoder) encode(v reflect.Value, dst map[string][]string) error {
 	useScratch := len(dst) == 0
 	// An empty dst plus a plan that writes every key once means each key is
 	// new, so the read append needs — a second hash of the key — is skipped.
-	fresh := useScratch && freshKeys
+	fresh := useScratch && plan.freshKeys
 	var scratch []string
 	appendValue := func(name, s string, scratchSafe bool) {
 		if !useScratch || !scratchSafe || len(s) > maxScratchValueLen {
@@ -317,7 +359,7 @@ func (e *Encoder) encode(v reflect.Value, dst map[string][]string) error {
 			}
 		}
 		if scratch == nil {
-			scratch = make([]string, 0, len(fields))
+			scratch = make([]string, 0, plan.scratch)
 		}
 		scratch = append(scratch, s)
 		dst[name] = scratch[len(scratch)-1 : len(scratch) : len(scratch)]
@@ -380,7 +422,7 @@ func (e *Encoder) encode(v reflect.Value, dst map[string][]string) error {
 			// Pointer elements with no encoder (elemPtrNil): nil encodes as
 			// "null" (as historically), a non-nil such element is an error.
 			bad := false
-			for j := 0; j < n; j++ {
+			for j := range n {
 				if fieldValue.Index(j).IsNil() {
 					values[j] = "null"
 					continue
@@ -393,7 +435,7 @@ func (e *Encoder) encode(v reflect.Value, dst map[string][]string) error {
 				continue
 			}
 		} else {
-			for j := 0; j < n; j++ {
+			for j := range n {
 				values[j] = f.elemEnc(fieldValue.Index(j))
 			}
 		}
@@ -435,7 +477,7 @@ func scratchSafeEncoder(t reflect.Type, reg map[reflect.Type]encoderFunc) bool {
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64:
 		return true
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return scratchSafeEncoder(t.Elem(), reg)
 	default:
 		return false
@@ -470,7 +512,7 @@ func typeEncoder(t reflect.Type, reg map[reflect.Type]encoderFunc) encoderFunc {
 		return encodeFloat32
 	case reflect.Float64:
 		return encodeFloat64
-	case reflect.Ptr:
+	case reflect.Pointer:
 		f := typeEncoder(t.Elem(), reg)
 		if f == nil {
 			// No encoder for the element: report unsupported instead of
