@@ -21,11 +21,16 @@ import (
 
 const (
 	defaultMaxSize = 16000
+	// maxAllocBytes bounds the slices and pointer targets one call allocates besides the destination's own
+	// slice fields: keys reach new ones per parent element or pointer path, so no per-field limit bounds them.
+	maxAllocBytes = 8 << 20
 )
 
 // errNotPointerToStruct is returned by Decode for invalid destinations;
 // hoisted so the check does not allocate on every call.
 var errNotPointerToStruct = errors.New("schema: interface must be a pointer to struct")
+
+var errAllocLimit = errors.New("schema: keys allocate past the per-call limit")
 
 // fileKeyValues stands in for the value of a multipart file's key in the
 // decode view. Nothing writes through a source map's values and the map it
@@ -93,7 +98,7 @@ func (d *Decoder) MaxSize(size int) {
 }
 
 // RegisterConverter registers a converter function for a custom type.
-func (d *Decoder) RegisterConverter(value interface{}, converterFunc Converter) {
+func (d *Decoder) RegisterConverter(value any, converterFunc Converter) {
 	d.cache.registerConverter(value, converterFunc)
 }
 
@@ -105,7 +110,7 @@ func (d *Decoder) RegisterConverter(value interface{}, converterFunc Converter) 
 // Keys are "paths" in dotted notation to the struct fields and nested structs.
 //
 // See the package documentation for a full explanation of the mechanics.
-func (d *Decoder) Decode(dst interface{}, src map[string][]string, files ...map[string][]*multipart.FileHeader) error {
+func (d *Decoder) Decode(dst any, src map[string][]string, files ...map[string][]*multipart.FileHeader) error {
 	var multipartFiles map[string][]*multipart.FileHeader
 
 	if len(files) > 0 {
@@ -141,7 +146,7 @@ func (d *Decoder) Decode(dst interface{}, src map[string][]string, files ...map[
 //
 // The first parameter must be a pointer to a struct, and keys and values must
 // be the same length. The slices are only read, and only during the call.
-func (d *Decoder) DecodeValues(dst interface{}, keys, values []string) error {
+func (d *Decoder) DecodeValues(dst any, keys, values []string) error {
 	if len(keys) != len(values) {
 		return errValuesLength
 	}
@@ -168,7 +173,7 @@ func (d *Decoder) DecodeValues(dst interface{}, keys, values []string) error {
 
 // decodeSource decodes src into dst, the pointer to a struct Decode and
 // DecodeValues were given, with the files Decode was.
-func (d *Decoder) decodeSource(dst interface{}, src *source, multipartFiles map[string][]*multipart.FileHeader) (err error) {
+func (d *Decoder) decodeSource(dst any, src *source, multipartFiles map[string][]*multipart.FileHeader) (err error) {
 	v := reflect.ValueOf(dst)
 	if v.Kind() != reflect.Pointer || v.Elem().Kind() != reflect.Struct {
 		return errNotPointerToStruct
@@ -201,12 +206,7 @@ func (d *Decoder) decodeSource(dst interface{}, src *source, multipartFiles map[
 		var requiredBits [requiredBitWords]uint64
 		satisfied, pending = markProvidedDirectly(rootInfo.requiredGroups, src, requiredBits[:])
 	}
-	// Only a struct whose paths carry an index can grow anything.
-	var grow *growTracker
-	if rootInfo.hasIndexedSlice {
-		var tracker growTracker
-		grow = &tracker
-	}
+	var grow growTracker
 	// The state decodeKey carries from key to key is kept in variables of
 	// its own rather than a struct: the compiler would let the stack values
 	// above escape along with the errors a struct holding both returns.
@@ -216,12 +216,12 @@ func (d *Decoder) decodeSource(dst interface{}, src *source, multipartFiles map[
 		var scratch [8]string
 		for i, path := range p.keys {
 			if p.first(i) {
-				errs, pending = d.decodeKey(v, rootInfo, multipartFiles, grow, satisfied, path, p.group(i, scratch[:0]), errs, pending)
+				errs, pending = d.decodeKey(v, rootInfo, multipartFiles, &grow, satisfied, path, p.group(i, scratch[:0]), errs, pending)
 			}
 		}
 	} else {
 		for path, values := range src.m {
-			errs, pending = d.decodeKey(v, rootInfo, multipartFiles, grow, satisfied, path, values, errs, pending)
+			errs, pending = d.decodeKey(v, rootInfo, multipartFiles, &grow, satisfied, path, values, errs, pending)
 		}
 	}
 	if rootInfo.needsDefaultsWalk {
@@ -251,13 +251,12 @@ func (d *Decoder) decodeKey(
 		if files != nil {
 			filesSlice = files[path]
 		}
-		if err = d.decode(v, path, parts, values, filesSlice, grow); err != nil {
+		if err = d.decode(v, path, parts, values, filesSlice, grow, false); err != nil {
 			errs = appendError(errs, path, err)
 		}
-		// A key that names no field is by far the most common failure,
-		// and parsePathInfo returns that sentinel unwrapped, so the
-		// pointer compare keeps errors.Is off the per-key path.
-	} else if err != errInvalidPath && errors.Is(err, errIndexTooLarge) { //nolint:errorlint // see above
+		// A key that names no field is by far the most common failure, and
+		// parsePathInfo returns its sentinels unwrapped; the others are limits.
+	} else if err != errInvalidPath { //nolint:errorlint // see above
 		errs = appendError(errs, path, err)
 	} else if !d.ignoreUnknownKeys {
 		errs = appendError(errs, path, UnknownKeyError{Key: path})
@@ -302,7 +301,7 @@ func (f *fieldInfo) resolveDefault() {
 			tmpl = reflect.Append(tmpl, v.Convert(elemT))
 		}
 		def.slice = tmpl
-	case reflect.Ptr:
+	case reflect.Pointer:
 		t1 := f.typ.Elem()
 		if conv := getBuiltinConverter(t1.Kind()); conv != nil {
 			if v := conv(f.defaultValue); v.IsValid() {
@@ -338,7 +337,7 @@ func (d *Decoder) setDefaults(t reflect.Type, v reflect.Value, src *source, pref
 	}
 
 	for _, f := range struc.defaultFields {
-		vCurrent := walkIndexChain(v, f.index)
+		vCurrent, _ := walkIndexChain(v, f.index, nil) // nothing to refuse without a tracker
 		if !vCurrent.IsValid() {
 			// Unreachable behind an unsettable nil embedded pointer.
 			continue
@@ -349,7 +348,7 @@ func (d *Decoder) setDefaults(t reflect.Type, v reflect.Value, src *source, pref
 		kind := f.typ.Kind()
 		if kind == reflect.Struct && f.defaultValue == "" {
 			errs = mergeErrors(errs, d.setDefaults(f.typ, vCurrent, src, prefix+f.canonicalDot))
-		} else if kind == reflect.Ptr && f.defaultValue == "" && isPointerToStruct(vCurrent) {
+		} else if kind == reflect.Pointer && f.defaultValue == "" && isPointerToStruct(vCurrent) {
 			errs = mergeErrors(errs, d.setDefaults(f.typ.Elem(), vCurrent.Elem(), src, prefix+f.canonicalDot))
 		}
 
@@ -382,7 +381,7 @@ func (d *Decoder) setDefaults(t reflect.Type, v reflect.Value, src *source, pref
 			fresh := reflect.MakeSlice(f.typ, def.slice.Len(), def.slice.Cap())
 			reflect.Copy(fresh, def.slice)
 			vCurrent.Set(fresh)
-		case reflect.Ptr:
+		case reflect.Pointer:
 			t1 := f.typ.Elem()
 			if t1.Kind() == reflect.Struct || t1.Kind() == reflect.Slice {
 				errs = appendError(errs, "default-"+f.name, errUnsupportedDefault)
@@ -425,7 +424,7 @@ func (d *Decoder) growCap(n int, tracked bool) int {
 }
 
 func isPointerToStruct(v reflect.Value) bool {
-	return !v.IsZero() && v.Type().Kind() == reflect.Ptr && v.Elem().Type().Kind() == reflect.Struct
+	return !v.IsZero() && v.Type().Kind() == reflect.Pointer && v.Elem().Type().Kind() == reflect.Struct
 }
 
 func fieldProvided(src *source, prefix string, f *fieldInfo) bool {
@@ -494,7 +493,8 @@ func markProvidedDirectly(groups []requiredGroup, src *source, inline []uint64) 
 // new pending count. Callers test for a dotted, non-empty key themselves, so
 // the keys that can answer nothing do not pay for a call.
 func markProvidedByNestedKey(info *structInfo, key string, off int, val []string, satisfied []uint64, pending int) int {
-	for {
+	// Each lookup hashes the whole prefix, so stopping at the longest one keeps a long key linear.
+	for off <= info.maxRequiredPrefixLen {
 		for _, p := range info.requiredPrefixes[key[:off]] {
 			if satisfied[p.group>>6]&(1<<uint(p.group&63)) != 0 {
 				continue
@@ -510,6 +510,7 @@ func markProvidedByNestedKey(info *structInfo, key string, off int, val []string
 		}
 		off += i + 1
 	}
+	return pending
 }
 
 // missingRequired reports the required keys nothing in src answered.
@@ -614,8 +615,8 @@ func isEmpty(t reflect.Type, value []string) bool {
 }
 
 var (
-	multipartFileHeaderPointerType      = reflect.TypeOf(&multipart.FileHeader{})
-	sliceMultipartFileHeaderPointerType = reflect.TypeOf([]*multipart.FileHeader{})
+	multipartFileHeaderPointerType      = reflect.TypeFor[*multipart.FileHeader]()
+	sliceMultipartFileHeaderPointerType = reflect.TypeFor[[]*multipart.FileHeader]()
 )
 
 // Supported multiple types:
@@ -674,7 +675,7 @@ func isMultipartField(typ reflect.Type) bool {
 	}
 
 	// Check for *[]*multipart.FileHeader
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 
 		if typ == sliceMultipartFileHeaderPointerType {
@@ -688,17 +689,20 @@ func isMultipartField(typ reflect.Type) bool {
 // walkHops follows a path to the target field, dereferencing pointers and
 // allocating the embedded pointers promoted fields need on the way. It
 // returns the zero Value when an unsettable nil embedded pointer blocks the
-// walk.
-func walkHops(v reflect.Value, hops []pathHop) reflect.Value {
+// walk, and an error once the call's allocation budget is spent.
+func walkHops(v reflect.Value, hops []pathHop, grow *growTracker) (reflect.Value, error) {
+	var err error
 	for _, hop := range hops {
 		// A previous hop may have been blocked by an unsettable nil
 		// embedded pointer; the field is unreachable then.
 		if !v.IsValid() {
-			return v
+			return v, nil
 		}
-		if v.Kind() == reflect.Ptr {
+		if v.Kind() == reflect.Pointer {
 			if v.IsNil() {
-				v.Set(reflect.New(v.Type().Elem()))
+				if err = grow.alloc(v, v.Type().Elem()); err != nil {
+					return v, err
+				}
 			}
 			v = v.Elem()
 		}
@@ -706,13 +710,20 @@ func walkHops(v reflect.Value, hops []pathHop) reflect.Value {
 		// Allocate embedded anonymous pointers required for promoted fields.
 		for _, idx := range hop.ensure {
 			if f := v.Field(idx); f.IsNil() {
-				f.Set(reflect.New(f.Type().Elem()))
+				if err = grow.alloc(f, f.Type().Elem()); err != nil {
+					return v, err
+				}
 			}
 		}
 
-		v = walkIndexChain(v, hop.index)
+		// A field of v itself needs none of the chain's pointer handling.
+		if len(hop.index) == 1 {
+			v = v.Field(hop.index[0])
+		} else if v, err = walkIndexChain(v, hop.index, grow); err != nil {
+			return v, err
+		}
 	}
-	return v
+	return v, nil
 }
 
 // walkIndexChain walks v along a struct field index chain. Chains longer
@@ -720,71 +731,86 @@ func walkHops(v reflect.Value, hops []pathHop) reflect.Value {
 // allocated so promoted fields stay reachable. It returns the zero Value
 // when the chain is blocked by a nil pointer that cannot be set (an
 // unexported embedded pointer), which callers treat as an unreachable
-// field.
-func walkIndexChain(v reflect.Value, chain []int) reflect.Value {
+// field, and an error once the call's allocation budget is spent.
+func walkIndexChain(v reflect.Value, chain []int, grow *growTracker) (reflect.Value, error) {
 	for j, fi := range chain {
-		if j > 0 && v.Kind() == reflect.Ptr {
+		if j > 0 && v.Kind() == reflect.Pointer {
 			if v.IsNil() {
 				if !v.CanSet() {
-					return reflect.Value{}
+					return reflect.Value{}, nil
 				}
-				v.Set(reflect.New(v.Type().Elem()))
+				if err := grow.alloc(v, v.Type().Elem()); err != nil {
+					return v, err
+				}
 			}
 			v = v.Elem()
 		}
 		v = v.Field(fi)
 	}
-	return v
+	return v, nil
 }
 
-// growTracker remembers which of the destination struct's slice fields a
-// Decode call has already reallocated, and how much room it reserved in each.
-// Fields are keyed by their index in that struct, which is what pathPart's
-// soleIndex carries: only a slice reached by one hop can be tracked, since a
-// deeper path reaches a slice inside some element, which the field alone
-// cannot tell apart from the same field in another. Fields past the four
-// entries keep growing exactly.
+// growTracker counts what a Decode call allocates toward maxAllocBytes and lets the
+// first eight arrays it grows at a key's first index grow geometrically.
 type growTracker struct {
-	fields [4]int
-	caps   [4]int
+	arrays [8]unsafe.Pointer
 	n      int
+	used   int
 }
 
-// reserved returns the capacity this call gave the slice at struct field
-// index i, or 0 if it has not reallocated it.
-func (g *growTracker) reserved(i int) int {
-	for j := 0; j < g.n; j++ {
-		if g.fields[j] == i {
-			return g.caps[j]
+// charge counts n values of size sz toward maxAllocBytes. Checked before
+// adding, so the count cannot wrap and what is refused costs nothing.
+func (g *growTracker) charge(n int, sz uintptr) error {
+	if s := int(sz); s != 0 && n > (maxAllocBytes-g.used)/s {
+		return errAllocLimit
+	}
+	g.used += n * int(sz)
+	return nil
+}
+
+// alloc points the nil pointer v at a new t, counted unless g is nil.
+func (g *growTracker) alloc(v reflect.Value, t reflect.Type) error {
+	if g != nil {
+		if err := g.charge(1, t.Size()); err != nil {
+			return err
 		}
 	}
-	return 0
+	v.Set(reflect.New(t))
+	return nil
 }
 
-func (g *growTracker) record(i, c int) {
-	for j := 0; j < g.n; j++ {
-		if g.fields[j] == i {
-			g.caps[j] = c
-			return
+// slot returns the entry of the array p if this call allocated it, else the
+// next free entry, or -1 when every entry is taken.
+func (g *growTracker) slot(p unsafe.Pointer) int {
+	for i := range g.n {
+		if g.arrays[i] == p {
+			return i
 		}
 	}
-	if g.n < len(g.fields) {
-		g.fields[g.n] = i
-		g.caps[g.n] = c
-		g.n++
+	if g.n == len(g.arrays) {
+		return -1
 	}
+	return g.n
 }
 
-// decode fills a struct field using a parsed path. grow is non-nil only for
-// the outermost call, the one place slice growth can be tracked.
-func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values []string, files []*multipart.FileHeader, grow *growTracker) error {
+func (g *growTracker) record(i int, p unsafe.Pointer) {
+	g.arrays[i] = p
+	g.n = max(g.n, i+1)
+}
+
+// decode fills a struct field using a parsed path. nested is set below a key's
+// first index; the outermost call is the one place slice growth can be tracked.
+func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values []string, files []*multipart.FileHeader, grow *growTracker, nested bool) error {
 	// Get the field walking the struct fields by index. Almost every path is
 	// one hop into a field of v, which needs none of the loop's bookkeeping.
 	if idx := parts[0].soleIndex; idx >= 0 && v.Kind() == reflect.Struct {
 		v = v.Field(idx)
-	} else if v = walkHops(v, parts[0].hops); !v.IsValid() {
-		// Unreachable behind an unsettable nil embedded pointer.
-		return nil
+	} else {
+		var err error
+		if v, err = walkHops(v, parts[0].hops, grow); err != nil || !v.IsValid() {
+			// Past the budget, or unreachable behind an unsettable nil embedded pointer.
+			return err
+		}
 	}
 
 	// Don't even bother for unexported fields.
@@ -820,12 +846,18 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 		return nil
 	}
 
+	if parts[0].field.mapValue != nil {
+		return d.decodeMapEntry(v, path, &parts[0], values)
+	}
+
 	// Dereference if needed.
 	t := v.Type()
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		if v.IsNil() {
-			v.Set(reflect.New(t))
+			if err := grow.alloc(v, t); err != nil {
+				return err
+			}
 		}
 		v = v.Elem()
 	}
@@ -841,28 +873,35 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 			// Indices arrive in map order, so a slice is typically grown
 			// several times per call. Extending one this call allocated is
 			// free: the room past its length is ours and freshly zeroed.
-			owner := -1
-			if grow != nil {
-				owner = parts[0].soleIndex
+			slot, root := -1, false
+			if !nested {
+				slot, root = grow.slot(v.UnsafePointer()), parts[0].soleIndex >= 0
 			}
-			if owner >= 0 && n <= v.Cap() && grow.reserved(owner) >= n {
+			ours := slot >= 0 && slot < grow.n
+			if ours && n <= v.Cap() {
 				v.SetLen(n)
 			} else {
-				// Otherwise grow into a fresh backing array: extending within
-				// the existing capacity would write into memory the caller
-				// may still share through another slice aliasing it.
-				value := reflect.MakeSlice(t, n, d.growCap(n, owner >= 0))
+				// Otherwise grow into a fresh array, as the caller may still alias the old one;
+				// a root field reserves room from its first growth, other slices from their second.
+				c := d.growCap(n, slot >= 0 && (root || ours))
+				// Only a tracked slice field of the destination struct is left to its index limit.
+				if slot < 0 || !root {
+					if err := grow.charge(c, t.Elem().Size()); err != nil {
+						return err
+					}
+				}
+				value := reflect.MakeSlice(t, n, c)
 				if v.Len() > 0 {
 					// Resize it.
 					reflect.Copy(value, v)
 				}
 				v.Set(value)
-				if owner >= 0 {
-					grow.record(owner, value.Cap())
+				if slot >= 0 {
+					grow.record(slot, value.UnsafePointer())
 				}
 			}
 		}
-		return d.decode(v.Index(idx), path, parts[1:], values, files, nil)
+		return d.decode(v.Index(idx), path, parts[1:], values, files, grow, true)
 	}
 
 	// Get the converter early in case there is one for a slice type.
@@ -877,7 +916,7 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 	}
 	if conv == nil && t.Kind() == reflect.Slice && m.IsSliceElement {
 		elemT := t.Elem()
-		isPtrElem := elemT.Kind() == reflect.Ptr
+		isPtrElem := elemT.Kind() == reflect.Pointer
 		if isPtrElem {
 			elemT = elemT.Elem()
 		}
@@ -899,6 +938,10 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 		// avoiding one reflect.Value allocation per element.
 		if customConv == nil && !m.IsValid && !isPtrElem {
 			return d.decodeBuiltinSlice(v, t, path, values)
+		}
+
+		if m.IsValid && !isPtrElem {
+			return d.decodeUnmarshalerSlice(v, t, path, values)
 		}
 
 		return d.decodeBoxedSlice(v, t, elemT, path, values, conv, m, isPtrElem)
@@ -965,10 +1008,53 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 	return nil
 }
 
+type mapEntry struct {
+	key, val reflect.Value
+}
+
+func newMapEntryPool(t reflect.Type) *sync.Pool {
+	return &sync.Pool{New: func() any {
+		return &mapEntry{key: reflect.New(t.Key()).Elem(), val: reflect.New(t.Elem()).Elem()}
+	}}
+}
+
+// decodeMapEntry decodes values into the entry of the map field v that the
+// rest of path from part.keyStart names, allocating the map on first use. The value is decoded as
+// a field of the map's value type, so it converts, reports errors and takes
+// the last of several values the way such a field does; the key is stored
+// exactly as sent.
+func (d *Decoder) decodeMapEntry(v reflect.Value, path string, part *pathPart, values []string) error {
+	f := part.field
+	// A plain scalar field ignores an empty value unless ZeroEmpty is set, so
+	// such a value leaves the map as it is rather than storing a zero value.
+	if k := f.mapValue[0].field.fastKind; k != reflect.Invalid && !d.zeroEmpty &&
+		(len(values) == 0 || values[len(values)-1] == "") {
+		return nil
+	}
+	keyStart := int(part.keyStart)
+	if keyStart == 0 {
+		keyStart = strings.IndexByte(path, '.') + 1
+	}
+	e, _ := f.entries.Get().(*mapEntry)
+	err := d.decode(e.val, path, f.mapValue, values, nil, nil, false)
+	if err == nil {
+		if v.IsNil() {
+			v.Set(reflect.MakeMap(v.Type()))
+		}
+		// The key may alias the caller's buffer.
+		e.key.SetString(strings.Clone(path[keyStart:]))
+		v.SetMapIndex(e.key, e.val)
+	}
+	// The map holds copies; zero the pair so the pool keeps none of the request's data.
+	e.val.SetZero()
+	e.key.SetZero()
+	f.entries.Put(e)
+	return err
+}
+
 // decodeBoxedSlice decodes values into the slice field v whose elements have
-// to round-trip through a reflect.Value: a custom converter, a
-// TextUnmarshaler, or pointer elements. It is split out so that decode, which
-// runs once per source key, carries no defer of its own.
+// to round-trip through a reflect.Value: a custom converter, or pointer
+// elements. Split out so that decode carries no defer of its own.
 func (d *Decoder) decodeBoxedSlice(v reflect.Value, t, elemT reflect.Type, path string, values []string, conv Converter, m unmarshaler, isPtrElem bool) error {
 	itemsBuf := decodeValueBufferPool.Get().(*[]reflect.Value)
 	items := (*itemsBuf)[:0]
@@ -984,10 +1070,8 @@ func (d *Decoder) decodeBoxedSlice(v reflect.Value, t, elemT reflect.Type, path 
 				items = append(items, reflect.Zero(t.Elem()))
 			}
 		} else if m.IsValid {
+			// Only pointer elements get here, so u itself is the element.
 			u := reflect.New(elemT)
-			if m.IsSliceElementPtr {
-				u = reflect.New(reflect.PointerTo(elemT).Elem())
-			}
 			um, _ := reflect.TypeAssert[encoding.TextUnmarshaler](u)
 			if err := um.UnmarshalText([]byte(value)); err != nil {
 				return ConversionError{
@@ -997,13 +1081,7 @@ func (d *Decoder) decodeBoxedSlice(v reflect.Value, t, elemT reflect.Type, path 
 					Err:   err,
 				}
 			}
-			if m.IsSliceElementPtr {
-				items = append(items, u.Elem().Addr())
-			} else {
-				// u is always a pointer from reflect.New; store the
-				// pointed-to value.
-				items = append(items, u.Elem())
-			}
+			items = append(items, u)
 		} else if item := conv(value); item.IsValid() {
 			items = appendConvertedItem(items, item, elemT, isPtrElem)
 		} else {
@@ -1056,6 +1134,62 @@ func appendConvertedItem(items []reflect.Value, item reflect.Value, elemT reflec
 		item = ptr
 	}
 	return append(items, item)
+}
+
+// unmarshalerSliceBudget bounds the first allocation: the client chooses how many values arrive.
+const unmarshalerSliceBudget = 4 << 10
+
+// decodeUnmarshalerSlice unmarshals each value into an element of a detached slice,
+// set on v only if all succeed; empty values are skipped unless ZeroEmpty is set.
+func (d *Decoder) decodeUnmarshalerSlice(v reflect.Value, t reflect.Type, path string, values []string) error {
+	var sl reflect.Value
+	room, i := 0, 0
+	for key, value := range values {
+		if value == "" && !d.zeroEmpty {
+			continue
+		}
+		if i == room {
+			sl = growUnmarshalerSlice(sl, t, len(values))
+			room = sl.Len()
+		}
+		if value != "" { // an empty value kept for ZeroEmpty leaves its slot zero
+			um, _ := reflect.TypeAssert[encoding.TextUnmarshaler](sl.Index(i).Addr())
+			if err := um.UnmarshalText([]byte(value)); err != nil {
+				return ConversionError{
+					Key:   path,
+					Type:  t,
+					Index: key,
+					Err:   err,
+				}
+			}
+		}
+		i++
+	}
+	if room == 0 {
+		sl = reflect.MakeSlice(t, 0, 0)
+	} else if i < room {
+		sl = sl.Slice(0, i)
+	}
+	v.Set(sl)
+	return nil
+}
+
+// growUnmarshalerSlice returns sl with more room: the budget at first, then doubled, up to limit.
+func growUnmarshalerSlice(sl reflect.Value, t reflect.Type, limit int) reflect.Value {
+	var n int
+	if sl.IsValid() {
+		n = 2 * sl.Len()
+	} else if size := int(t.Elem().Size()); size == 0 {
+		n = limit
+	} else {
+		n = max(1, unmarshalerSliceBudget/size)
+	}
+	n = min(n, limit)
+	grown := reflect.MakeSlice(t, n, n)
+	if sl.IsValid() {
+		reflect.Copy(grown, sl)
+	}
+	return grown
 }
 
 // decodeBuiltinSlice decodes values into the slice field v of type t whose
@@ -1113,7 +1247,9 @@ func (d *Decoder) decodeBuiltinSlice(v reflect.Value, t reflect.Type, path strin
 				i++ // slot stays zero
 			}
 		case split && strings.IndexByte(value, ',') != -1:
-			for item := range strings.SplitSeq(value, ",") {
+			for rest, more := value, true; more; {
+				var item string
+				item, rest, more = utils.CutByte(rest, ',')
 				if item == "" {
 					if d.zeroEmpty {
 						i++ // slot stays zero
@@ -1149,13 +1285,13 @@ func (d *Decoder) decodeBuiltinSlice(v reflect.Value, t reflect.Type, path strin
 
 // Exact (unnamed) builtin slice types eligible for the native decode path.
 var (
-	typSliceString  = reflect.TypeOf([]string(nil))
-	typSliceInt     = reflect.TypeOf([]int(nil))
-	typSliceInt64   = reflect.TypeOf([]int64(nil))
-	typSliceUint    = reflect.TypeOf([]uint(nil))
-	typSliceUint64  = reflect.TypeOf([]uint64(nil))
-	typSliceFloat64 = reflect.TypeOf([]float64(nil))
-	typSliceBool    = reflect.TypeOf([]bool(nil))
+	typSliceString  = reflect.TypeFor[[]string]()
+	typSliceInt     = reflect.TypeFor[[]int]()
+	typSliceInt64   = reflect.TypeFor[[]int64]()
+	typSliceUint    = reflect.TypeFor[[]uint]()
+	typSliceUint64  = reflect.TypeFor[[]uint64]()
+	typSliceFloat64 = reflect.TypeFor[[]float64]()
+	typSliceBool    = reflect.TypeFor[[]bool]()
 )
 
 // decodeNativeSlice mirrors the generic decodeBuiltinSlice loop for a field
@@ -1171,7 +1307,9 @@ func decodeNativeSlice[T any](zeroEmpty bool, v reflect.Value, path string, valu
 				out = append(out, zero)
 			}
 		case split && strings.IndexByte(value, ',') != -1:
-			for item := range strings.SplitSeq(value, ",") {
+			for rest, more := value, true; more; {
+				var item string
+				item, rest, more = utils.CutByte(rest, ',')
 				if item == "" {
 					if zeroEmpty {
 						out = append(out, zero)
@@ -1226,7 +1364,7 @@ func isTextUnmarshaler(v reflect.Value) unmarshaler {
 
 	// if v is []T or *[]T create new T
 	t := v.Type()
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	if t.Kind() == reflect.Slice {
@@ -1234,7 +1372,7 @@ func isTextUnmarshaler(v reflect.Value) unmarshaler {
 		// here: the value-level assert above already covered it. Check
 		// whether the elements do.
 		m.IsSliceElement = true
-		if t = t.Elem(); t.Kind() == reflect.Ptr {
+		if t = t.Elem(); t.Kind() == reflect.Pointer {
 			t = reflect.PointerTo(t.Elem())
 			m.IsSliceElementPtr = true
 			_, m.IsValid = reflect.TypeAssert[encoding.TextUnmarshaler](reflect.Zero(t))

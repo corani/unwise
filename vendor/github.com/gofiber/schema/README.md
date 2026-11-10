@@ -1,3 +1,8 @@
+<p align="center">
+  <img height="125" alt="Fiber Schema" src="https://raw.githubusercontent.com/gofiber/schema/main/.github/logo-dark.svg#gh-dark-mode-only" />
+  <img height="125" alt="Fiber Schema" src="https://raw.githubusercontent.com/gofiber/schema/main/.github/logo.svg#gh-light-mode-only" />
+</p>
+
 # gofiber/schema
 
 Package gofiber/schema converts structs to and from form values.
@@ -78,8 +83,23 @@ The supported field types in the struct are:
 * struct
 * a pointer to one of the above types
 * a slice or a pointer to a slice of one of the above types
+* a map with string keys whose values are one of the non-struct types above, a type with a registered converter or an `encoding.TextUnmarshaler` implementation, or a pointer or slice of those (see below)
 
 Unsupported types are simply ignored, however custom types can be registered to be converted.
+
+### Map fields
+
+A map field is filled from keys of the form `<field>.<key>`, one map entry per key:
+
+```go
+type Filter struct {
+    Attributes map[string]string   `schema:"attributes"` // attributes.colour=red
+    Tags       map[string][]string `schema:"tags"`       // tags.size=m&tags.size=l
+    Limits     map[string]int      `schema:"limits"`     // limits.max=10
+}
+```
+
+The field name matches case-insensitively like any other field, while the key is kept exactly as sent, and everything after the field name is the key (`attributes.a.b` gives the key `a.b`). Each value is decoded as a field of the map's value type would be, so a single-value map takes the last of several values. For a plain built-in value type (a string, bool or number), an empty value adds no entry unless `ZeroEmpty` is set; any other value type, such as a slice, a pointer or a type with a converter or `encoding.TextUnmarshaler`, gets an entry decoded from the empty value as such a field would be. A map is allocated on first use and entries are added to an existing one. A map type with a registered converter or an `encoding.TextUnmarshaler` implementation is decoded as a whole from the field's own key instead.
 
 ## Decoding Key/Value Pairs
 
@@ -93,6 +113,10 @@ err := decoder.DecodeValues(&person, keys, values)
 ```
 
 `values[i]` is a value of the key `keys[i]`, and a key given more than once has all of its values in the order given, as it would in the map. The two slices must be the same length.
+
+## Limits
+
+Keys usually come from a client, so the decoder bounds what they can make it allocate: a key may name at most 64 fields, and a slice index may be at most 1000 (or `MaxSize`, if lower). One call may also allocate at most 8 MiB in all for the values behind nil pointers on its keys' paths and for the slices it grows, counting the capacity each growth reserves. Maps and file fields are not counted, nor are the slice fields declared on the destination struct itself unless the struct embeds an exported pointer or the call grew eight other slices at a key's first index before them. The first eight slices a call grows at a key's first index grow geometrically, any other slice to exactly the index plus one. A key past a limit is not decoded and is reported under its own name in the returned `MultiError`, also when `IgnoreUnknownKeys` is set.
 
 ## Setting Defaults
 
@@ -157,7 +181,7 @@ Fiber is an open-source project that runs on donations to pay the bills, e.g., o
 <table>
 <tr><td valign="top"><strong>🔥 Fiber Guardian</strong></td><td><a href="https://www.coderabbit.ai/?utm_source=cr_org&amp;utm_medium=github" title="@coderabbitai"><img src="https://github.com/coderabbitai.png" width="50" alt="@coderabbitai" /></a></td></tr>
 <tr><td valign="top"><strong>☕ Fiber Supporter</strong></td><td><a href="https://ndole.studio" title="@NdoleStudio"><img src="https://github.com/NdoleStudio.png" width="34" alt="@NdoleStudio" /></a></td></tr>
-<tr><td valign="top"><strong>🪴 Fiber Friend</strong></td><td><a href="https://github.com/simonheisstpeter" title="@simonheisstpeter"><img src="https://github.com/simonheisstpeter.png" width="32" alt="@simonheisstpeter" /></a></td></tr>
+<tr><td valign="top"><strong>🪴 Fiber Friend</strong></td><td><a href="https://www.kamaslau.com" title="@kamaslau"><img src="https://github.com/kamaslau.png" width="32" alt="@kamaslau" /></a>&nbsp;<a href="https://github.com/simonheisstpeter" title="@simonheisstpeter"><img src="https://github.com/simonheisstpeter.png" width="32" alt="@simonheisstpeter" /></a></td></tr>
 </table>
 
 ### 🎁 One-time Sponsors

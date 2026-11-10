@@ -57,20 +57,26 @@ github.com/go-logfmt/logfmt
 ## explicit; go 1.18
 github.com/go-viper/mapstructure/v2
 github.com/go-viper/mapstructure/v2/internal/errors
-# github.com/gofiber/fiber/v3 v3.6.1
+# github.com/gofiber/fiber/v3 v3.7.0
 ## explicit; go 1.26.0
 github.com/gofiber/fiber/v3
 github.com/gofiber/fiber/v3/binder
 github.com/gofiber/fiber/v3/extractors
 github.com/gofiber/fiber/v3/internal/appconfig
+github.com/gofiber/fiber/v3/internal/bodystream
+github.com/gofiber/fiber/v3/internal/bytepolicy
 github.com/gofiber/fiber/v3/internal/byterange
 github.com/gofiber/fiber/v3/internal/contextvalue
 github.com/gofiber/fiber/v3/internal/cookie
 github.com/gofiber/fiber/v3/internal/ctxlocal
+github.com/gofiber/fiber/v3/internal/errorreplay
 github.com/gofiber/fiber/v3/internal/etag
 github.com/gofiber/fiber/v3/internal/fieldname
+github.com/gofiber/fiber/v3/internal/fspath
 github.com/gofiber/fiber/v3/internal/headerlist
 github.com/gofiber/fiber/v3/internal/headerlookup
+github.com/gofiber/fiber/v3/internal/hostname
+github.com/gofiber/fiber/v3/internal/ipv6host
 github.com/gofiber/fiber/v3/internal/logtemplate
 github.com/gofiber/fiber/v3/internal/mediatype
 github.com/gofiber/fiber/v3/internal/nilerror
@@ -79,16 +85,17 @@ github.com/gofiber/fiber/v3/internal/quotedstring
 github.com/gofiber/fiber/v3/internal/redact
 github.com/gofiber/fiber/v3/internal/schemehost
 github.com/gofiber/fiber/v3/internal/urlnorm
+github.com/gofiber/fiber/v3/internal/wiretarget
 github.com/gofiber/fiber/v3/log
 github.com/gofiber/fiber/v3/middleware/basicauth
 github.com/gofiber/fiber/v3/middleware/helmet
 github.com/gofiber/fiber/v3/middleware/keyauth
 github.com/gofiber/fiber/v3/middleware/logger
 github.com/gofiber/fiber/v3/middleware/static
-# github.com/gofiber/schema v1.8.8
+# github.com/gofiber/schema v1.9.3
 ## explicit; go 1.26.0
 github.com/gofiber/schema
-# github.com/gofiber/utils/v2 v2.6.2
+# github.com/gofiber/utils/v2 v2.6.4
 ## explicit; go 1.26.0
 github.com/gofiber/utils/v2
 github.com/gofiber/utils/v2/bytes
@@ -166,7 +173,7 @@ github.com/mitchellh/copystructure
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/molecule-man/go-brrr v1.3.0
+# github.com/molecule-man/go-brrr v1.3.1
 ## explicit; go 1.22.0
 github.com/molecule-man/go-brrr
 github.com/molecule-man/go-brrr/internal/core
@@ -177,7 +184,7 @@ github.com/muesli/cancelreader
 # github.com/ncruces/go-strftime v1.1.0
 ## explicit; go 1.24
 github.com/ncruces/go-strftime
-# github.com/philhofer/fwd v1.2.0
+# github.com/philhofer/fwd v1.2.1
 ## explicit; go 1.20
 github.com/philhofer/fwd
 # github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec
@@ -214,7 +221,7 @@ github.com/tinylib/msgp/msgp
 # github.com/valyala/bytebufferpool v1.0.0
 ## explicit
 github.com/valyala/bytebufferpool
-# github.com/valyala/fasthttp v1.75.0
+# github.com/valyala/fasthttp v1.78.0
 ## explicit; go 1.26.0
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttpadaptor
@@ -247,7 +254,7 @@ github.com/xeipuuv/gojsonschema
 # github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e
 ## explicit; go 1.19
 github.com/xo/terminfo
-# go.yaml.in/yaml/v3 v3.0.5
+# go.yaml.in/yaml/v3 v3.0.6
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
 # golang.org/x/crypto v0.58.0
@@ -269,8 +276,9 @@ golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.61.0
+# golang.org/x/net v0.62.0
 ## explicit; go 1.26.0
+golang.org/x/net/http/httpguts
 golang.org/x/net/idna
 # golang.org/x/sync v0.24.0
 ## explicit; go 1.26.0
